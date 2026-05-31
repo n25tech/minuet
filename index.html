@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title class="timer-display"></title>
+		<script src="pomodoro.js" defer></script>
+		<script src="todolist.js" defer></script>
+		<style>
+
+/* Default Theme (Light) */
+:root, [data-theme="light"] {
+  --slate-dark: #545F66;
+  --slate-muted: #829399;
+  --mint-light: #D0F4EA;
+  --lime-light: #E8FCC2;
+  --moss-green: #B1CC74;
+
+  /* UI Mapping */
+  --bg-app: var(--lime-light);
+  --bg-card: #ffffff;
+  
+  --text-main: var(--slate-dark);
+  --text-muted: var(--slate-muted);
+  
+  --btn-primary: var(--moss-green);
+  --btn-text: #ffffff;
+  
+  /* Dynamic Timer States */
+  --timer-focus: var(--moss-green);
+  --timer-break: var(--mint-light);
+
+}
+
+/* Dark Theme */
+[data-theme="dark"] {
+  --bg-color: #1a1a1a;
+  --text-color: #f5f5f5;
+  --accent-color: #e74c3c;
+}
+
+/* Cyberpunk Theme */
+[data-theme="cyberpunk"] {
+  --bg-color: #000b19;
+  --text-color: #00ff66;
+  --accent-color: #ff0055;
+}
+
+/* Apply the variables globally */
+body {
+  background-color: var(--bg-app);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transition */
+}
+
+.card {
+  background-color: var(--bg-card)
+}
+
+button {
+  background-color: var(--accent-color);
+  color: var(--bg-color);
+}
+		</style>
+	</head>
+	<body>
+		<h1>Pomodoro</h1>
+		<div class="card">
+		<p id="pomodoro-timer-display">00:00</p>
+		<button onclick="startPomodoro()">start</button>
+		</div>
+		<div class="card">
+		<h1>Todo list</h1>
+		<div id="todolist-table-container"></div>
+		</div>
+	</body>
+</html>
