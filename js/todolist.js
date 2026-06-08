@@ -36,7 +36,7 @@ class TodoList {
 	}
 
 	addItem() {
-		const input = document.getElementById("new-item-input");
+		const input = document.getElementById(this.uiItemInput);
 		const newItemText = input.value.trim();
 		if (newItemText) {
 			const newItem = this._idNewItem(newItemText);
@@ -46,6 +46,7 @@ class TodoList {
 			input.value = "";
 		}
 	}
+
 	markComplete(id) {
 		const item = this.list.find(item => item.id === id);
 		if (item) {
@@ -87,3 +88,21 @@ let todoList;
 document.addEventListener('DOMContentLoaded', () => {
 	todoList = new TodoList().init();
 });
+
+/*
+const inputElement = document.getElementById('new-item-input');
+
+inputElement.addEventListener('keydown', (event) => {
+    // Check if the pressed key is "Enter"
+    if (event.key === 'Enter') {
+        // Prevent the default browser action if necessary
+        event.preventDefault(); 
+        
+        const inputValue = event.target.value.trim();
+        
+        if (inputValue !== '') {
+			todoList.addItem();
+        }
+    }
+});
+*/
