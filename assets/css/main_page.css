@@ -1,0 +1,58 @@
+.main-page {
+  background-color: var(--bg-app);
+  color: var(--text-color);
+  transition: background-color 0.3s ease, color 0.3s ease;
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 1fr;
+  grid-template-rows: auto 1fr 1fr;
+  grid-template-areas:
+    "navbar navbar navbar"
+    "left center-top right"
+    "left center-bottom right";
+  height: 100vh;
+  margin: 0;
+}
+
+.navbar {
+  grid-area: navbar;
+  background-color: var(--bg-card);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0 1.5rem;
+  height: 48px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+  order: -1;
+}
+
+.left-column {
+  /*background-color: aqua;*/
+  grid-area: left;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+}
+
+.right-column {
+  /*
+  background-color: lightgray;
+  display: flex;
+  */
+  grid-area: right;
+  height: 100%;
+}
+
+.center-top-column {
+  /*background-color: green;*/
+  grid-area: center-top;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.center-bottom-column {
+  /*background-color: yellow;*/
+  grid-area: center-bottom;
+  height: 100%;
+}

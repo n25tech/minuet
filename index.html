@@ -8,11 +8,15 @@
     content="Minuet is a minimalist productivity app designed to help you organize tasks, manage time precisely, and find your daily work rhythm.">
   <link rel="icon" type="image/x-icon" href="assets/images/favicon.svg" />
   <title class="timer-display">Minuet</title>
+  <script src="js/app.js" defer></script>
   <script src="js/pomodoro.js" defer></script>
   <script src="js/todolist.js" defer></script>
+  <script src="js/signin.js" defer></script>
   <link rel="stylesheet" href="assets/css/styles.css">
   <link rel="stylesheet" href="assets/css/light_theme.css">
   <link rel="stylesheet" href="assets/css/dark_theme.css">
+  <link rel="stylesheet" href="assets/css/main_page.css">
+  <link rel="stylesheet" href="assets/css/signin_page.css">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -26,9 +30,12 @@
 </head>
 
 <body>
-  <nav class="navbar">
-    <h1 hidden="false">Minuet</h1>
-    <span class="navbar-brand">Minuet</span>
+  <div id="app"></div>
+  <!--TEMPLATES-->
+  <!--SIGNIN PAGE TEMPLATE-->
+  <template id="signin-page-template">
+    <h1>Sign In Page</h1>
+    <button onclick="LoadMainPage()">Load Main Page</button>
     <div class="google-signin-wrapper">
       <div id="g_id_onload" data-client_id="939463706311-ji3do0uatdidaeodo6ipt6ec9dhur0kg.apps.googleusercontent.com"
         data-login_uri="https://minuet.n25tech.com/api/auth/callback" data-auto_prompt="false">
@@ -37,33 +44,42 @@
         data-shape="rectangular" data-logo_alignment="left">
       </div>
     </div>
-  </nav>
-  <div class="left-column">
-    <div>
-      <h3>To-do list</h3>
-      <div id="todolist-table-container">
+  </template>
+  <!--MAIN PAGE TEMPLATE-->
+  <template id="main-page-template">
+    <div id="main-page" class="main-page">
+      <nav class="navbar">
+        <h1 hidden="false">Minuet</h1>
+        <span class="navbar-brand">Minuet</span>
+      </nav>
+      <div class="left-column">
+        <div>
+          <h3>To-do list</h3>
+          <div id="todolist-table-container">
+          </div>
+          <input type="text" id="new-item-input" placeholder="New item">
+          <button onclick="todoList.addItem()">Add</button>
+          <div>
+            <br />
+            <button onclick="todoList.clearCompleted()">Clear Completed</button>
+          </div>
+        </div>
       </div>
-      <input type="text" id="new-item-input" placeholder="New item">
-      <button onclick="todoList.addItem()">Add</button>
-      <div>
-        <br />
-        <button onclick="todoList.clearCompleted()">Clear Completed</button>
+      <div class="center-top-column">
+        <div class="pomodoro-card">
+          <h3>Pomodoro</h3>
+          <p id="pomodoro-timer-display">00:00</p>
+          <button id="pomodoro-toggle-button" onclick="pomodoroTimer.handleToggleBtn()">Start</button>
+          <button onclick="pomodoroTimer.resetEngine()">reset</button>
+        </div>
+      </div>
+      <div class="center-bottom-column"></div>
+      <div class="right-column">
+        <h3>Notes/Distraction Diary</h3>
+        <textarea id="notes-area" placeholder="Write your notes here..."></textarea>
       </div>
     </div>
-  </div>
-  <div class="center-top-column">
-    <div class="pomodoro-card">
-      <h3>Pomodoro</h3>
-      <p id="pomodoro-timer-display">00:00</p>
-      <button id="pomodoro-toggle-button" onclick="pomodoroTimer.handleToggleBtn()">Start</button>
-      <button onclick="pomodoroTimer.resetEngine()">reset</button>
-    </div>
-  </div>
-  <div class="center-bottom-column"></div>
-  <div class="right-column">
-    <h3>Notes/Distraction Diary</h3>
-    <textarea id="notes-area" placeholder="Write your notes here..."></textarea>
-  </div>
+  </template>
 </body>
 
 </html>
