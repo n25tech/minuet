@@ -5,4 +5,6 @@ Features:
 * Distraction diary
 * White noise machine
 
+Deployment:
 
+This project is deployed via cloudflare pages.

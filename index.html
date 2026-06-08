@@ -1,75 +1,60 @@
 <!DOCTYPE html>
-<html>
-	<head>
-		<title class="timer-display"></title>
-		<script src="pomodoro.js" defer></script>
-		<script src="todolist.js" defer></script>
-		<style>
+<html lang="en">
 
-/* Default Theme (Light) */
-:root, [data-theme="light"] {
-  --slate-dark: #545F66;
-  --slate-muted: #829399;
-  --mint-light: #D0F4EA;
-  --lime-light: #E8FCC2;
-  --moss-green: #B1CC74;
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description"
+    content="Minuet is a minimalist productivity app designed to help you organize tasks, manage time precisely, and find your daily work rhythm.">
+  <link rel="icon" type="image/x-icon" href="assets/images/favicon.svg" />
+  <title class="timer-display">Minuet</title>
+  <script src="js/pomodoro.js" defer></script>
+  <script src="js/todolist.js" defer></script>
+  <link rel="stylesheet" href="assets/css/styles.css">
+  <link rel="stylesheet" href="assets/css/light_theme.css">
+  <link rel="stylesheet" href="assets/css/dark_theme.css">
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('/sw.js')
+          .then(reg => console.log('Service Worker registered successfully:', reg.scope))
+          .catch(err => console.error('Service Worker registration failed:', err));
+      });
+    }
+  </script>
+</head>
 
-  /* UI Mapping */
-  --bg-app: var(--lime-light);
-  --bg-card: #ffffff;
-  
-  --text-main: var(--slate-dark);
-  --text-muted: var(--slate-muted);
-  
-  --btn-primary: var(--moss-green);
-  --btn-text: #ffffff;
-  
-  /* Dynamic Timer States */
-  --timer-focus: var(--moss-green);
-  --timer-break: var(--mint-light);
+<body>
+  <h1 hidden="true">Minuet</h1>
+  <nav class="navbar">
+    <span class="navbar-brand">Minuet</span>
+  </nav>
+  <div class="left-column">
+    <div>
+      <h3>To-do list</h3>
+      <div id="todolist-table-container">
+      </div>
+      <input type="text" id="new-item-input" placeholder="New item">
+        <button onclick="todoList.addItem()">Add</button>
+      <div>
+        <br />
+        <button onclick="todoList.clearCompleted()">Clear Completed</button>
+      </div>
+    </div>
+  </div>
+  <div class="center-top-column">
+    <div class="pomodoro-card">
+      <h3>Pomodoro</h3>
+      <p id="pomodoro-timer-display">00:00</p>
+      <button id="pomodoro-toggle-button" onclick="pomodoroTimer.handleToggleBtn()">Start</button>
+      <button onclick="pomodoroTimer.resetEngine()">reset</button>
+    </div>
+  </div>
+  <div class="center-bottom-column"></div>
+  <div class="right-column">
+    <h3>Notes/Distraction Diary</h3>
+    <textarea id="notes-area" placeholder="Write your notes here..."></textarea>
+  </div>
+</body>
 
-}
-
-/* Dark Theme */
-[data-theme="dark"] {
-  --bg-color: #1a1a1a;
-  --text-color: #f5f5f5;
-  --accent-color: #e74c3c;
-}
-
-/* Cyberpunk Theme */
-[data-theme="cyberpunk"] {
-  --bg-color: #000b19;
-  --text-color: #00ff66;
-  --accent-color: #ff0055;
-}
-
-/* Apply the variables globally */
-body {
-  background-color: var(--bg-app);
-  color: var(--text-color);
-  transition: background-color 0.3s ease, color 0.3s ease; /* Smooth transition */
-}
-
-.card {
-  background-color: var(--bg-card)
-}
-
-button {
-  background-color: var(--accent-color);
-  color: var(--bg-color);
-}
-		</style>
-	</head>
-	<body>
-		<h1>Pomodoro</h1>
-		<div class="card">
-		<p id="pomodoro-timer-display">00:00</p>
-		<button onclick="startPomodoro()">start</button>
-		</div>
-		<div class="card">
-		<h1>Todo list</h1>
-		<div id="todolist-table-container"></div>
-		</div>
-	</body>
 </html>

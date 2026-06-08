@@ -1,0 +1,13 @@
+# For your main HTML and root paths (forces immediate check)
+/
+  Cache-Control: no-cache, no-store, must-revalidate
+/*.html
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# For your Service Worker script (CRITICAL: must never be cached by headers)
+/sw.js
+  Cache-Control: no-cache, no-store, must-revalidate
+
+# For static assets (safe to cache long-term if you use content-hashing in names)
+/assets/*
+  Cache-Control: public, max-age=31536000, immutable

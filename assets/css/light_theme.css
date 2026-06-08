@@ -1,0 +1,24 @@
+/* Default Theme (Light) */
+:root,
+[data-theme="light"] {
+  --slate-dark: #545F66;
+  --slate-muted: #829399;
+  --mint-light: #D0F4EA;
+  --lime-light: #E8FCC2;
+  --moss-green: #B1CC74;
+
+  /* UI Mapping */
+  --bg-app: var(--lime-light);
+  --bg-card: #ffffff;
+
+  --text-main: var(--slate-dark);
+  --text-muted: var(--slate-muted);
+
+  --btn-primary: var(--moss-green);
+  --btn-text: #ffffff;
+
+  /* Dynamic Timer States */
+  --timer-focus: var(--moss-green);
+  --timer-break: var(--mint-light);
+
+}
