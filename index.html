@@ -22,12 +22,21 @@
       });
     }
   </script>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
 </head>
 
 <body>
-  <h1 hidden="true">Minuet</h1>
   <nav class="navbar">
+    <h1 hidden="false">Minuet</h1>
     <span class="navbar-brand">Minuet</span>
+    <div class="google-signin-wrapper">
+      <div id="g_id_onload" data-client_id="939463706311-ji3do0uatdidaeodo6ipt6ec9dhur0kg.apps.googleusercontent.com"
+        data-login_uri="https://minuet.n25tech.com/api/auth/callback" data-auto_prompt="false">
+      </div>
+      <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with"
+        data-shape="rectangular" data-logo_alignment="left">
+      </div>
+    </div>
   </nav>
   <div class="left-column">
     <div>
@@ -35,7 +44,7 @@
       <div id="todolist-table-container">
       </div>
       <input type="text" id="new-item-input" placeholder="New item">
-        <button onclick="todoList.addItem()">Add</button>
+      <button onclick="todoList.addItem()">Add</button>
       <div>
         <br />
         <button onclick="todoList.clearCompleted()">Clear Completed</button>

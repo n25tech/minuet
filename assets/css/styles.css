@@ -19,9 +19,13 @@ body {
   background-color: var(--bg-card);
   display: flex;
   align-items: center;
+  justify-content: space-between;
   padding: 0 1.5rem;
   height: 48px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
+}
+
+.google-signin-wrapper {
 }
 
 .navbar-brand {
