@@ -11,6 +11,7 @@ function LoadPage(pageTemplate) {
 
 const LoadSigninPage = () => {
     LoadPage('signin-page-template');
+    googleSignIn();
 }
 
 const LoadMainPage = () => {
