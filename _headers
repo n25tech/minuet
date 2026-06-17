@@ -8,6 +8,9 @@
 /sw.js
   Cache-Control: no-cache, no-store, must-revalidate
 
-# For static assets (safe to cache long-term if you use content-hashing in names)
+# Static assets are NOT content-hashed, so they must be revalidated on each load.
+# (Marking them immutable froze old CSS/JS in browsers for a year after deploys.)
 /assets/*
-  Cache-Control: public, max-age=31536000, immutable
+  Cache-Control: public, max-age=0, must-revalidate
+/js/*
+  Cache-Control: public, max-age=0, must-revalidate
