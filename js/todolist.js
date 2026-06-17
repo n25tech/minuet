@@ -7,6 +7,7 @@ class TodoList {
 		this.uiContainer = uiContainer;
 		this.storageKey = storageKey;
 		this.list = [];
+		this.completedList = [];
 		this.uiItemInput = uiItemInput;
 	}
 	init() {
@@ -15,12 +16,23 @@ class TodoList {
 		return this;
 	}
 	loadState() {
-		this.list = localStorage.getItem(this.storageKey) ? JSON.parse(localStorage.getItem(this.storageKey)) : [];
+		let state = localStorage.getItem(this.storageKey) ? JSON.parse(localStorage.getItem(this.storageKey)) : { list: [], completedList: [] };
+		this.list = state.list;
+		this.completedList = state.completedList;
 	}
 	saveState() {
-		localStorage.setItem(this.storageKey, JSON.stringify(this.list));
+		let state = {
+			list: this.list,
+			completedList: this.completedList
+		};
+		localStorage.setItem(this.storageKey, JSON.stringify(state));
 	}
-	deleteState() { }
+	deleteState() {
+		this.list = [];
+		this.completedList = [];
+		localStorage.removeItem(this.storageKey);
+		console.log('deleted state');
+	}
 
 	_idNewItem(text) {
 		let order, id;
@@ -31,7 +43,7 @@ class TodoList {
 			order = 1;
 			id = 1;
 		}
-		const item = { "text": text, "complete": false, "deleted": false, "order": order, "id": id };
+		const item = { "text": text, "order": order, "id": id };
 		return item;
 	}
 
@@ -50,25 +62,31 @@ class TodoList {
 	markComplete(id) {
 		const item = this.list.find(item => item.id === id);
 		if (item) {
-			this.list.pop(item);
-			item.complete = !item.complete;
-			this.list.push(item);
+			this.list = this.list.filter(i => i.id !== id);
+			this.completedList.push(item);
 			this.saveState();
 			this.displayList();
 		}
 	}
 	clearCompleted() {
-		this.list = this.list.filter(item => !item.complete);
+		//this.list = this.list.filter(item => !item.complete);
+		this.completedList = [];
 		this.saveState();
 		this.displayList();
 	}
 	displayList() {
 		const containerInstance = document.getElementById(this.uiContainer);
 		containerInstance.innerHTML = '';
+		this.completedList.forEach((item) => {
+			const p = document.createElement("p");
+			p.style.textDecoration = "line-through";
+			p.textContent = item.text;
+			containerInstance.appendChild(p);
+		});
 		this.list.forEach((item) => {
 			const p = document.createElement("p");
 			const b = document.createElement("button");
-			p.style.textDecoration = item.complete ? "line-through" : "none";
+			p.style.textDecoration = "none";
 			p.textContent = item.text;
 			b.textContent = item.complete ? "Mark Incomplete" : "Mark Complete";
 			b.onclick = () => {
@@ -93,16 +111,16 @@ document.addEventListener('DOMContentLoaded', () => {
 const inputElement = document.getElementById('new-item-input');
 
 inputElement.addEventListener('keydown', (event) => {
-    // Check if the pressed key is "Enter"
-    if (event.key === 'Enter') {
-        // Prevent the default browser action if necessary
-        event.preventDefault(); 
-        
-        const inputValue = event.target.value.trim();
-        
-        if (inputValue !== '') {
+	// Check if the pressed key is "Enter"
+	if (event.key === 'Enter') {
+		// Prevent the default browser action if necessary
+		event.preventDefault(); 
+	    
+		const inputValue = event.target.value.trim();
+	    
+		if (inputValue !== '') {
 			todoList.addItem();
-        }
-    }
+		}
+	}
 });
 */
