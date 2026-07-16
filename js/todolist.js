@@ -17,8 +17,8 @@ class TodoList {
 	}
 	loadState() {
 		let state = localStorage.getItem(this.storageKey) ? JSON.parse(localStorage.getItem(this.storageKey)) : { list: [], completedList: [] };
-		this.list = state.list;
-		this.completedList = state.completedList;
+		this.list = state.list || [];
+		this.completedList = state.completedList || [];
 	}
 	saveState() {
 		let state = {
