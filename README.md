@@ -18,7 +18,7 @@ A pomodoro app written in vanilla js.
 
 ### Deployment:
 
-This project is deployed via cloudflare pages.
+This project is deployed via cloudflare pages. You can view it at: https://minuet.n25tech.com/
 
 ### Motivation:
 
