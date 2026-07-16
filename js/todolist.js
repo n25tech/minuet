@@ -107,7 +107,6 @@ document.addEventListener('DOMContentLoaded', () => {
 	todoList = new TodoList().init();
 });
 
-/*
 const inputElement = document.getElementById('new-item-input');
 
 inputElement.addEventListener('keydown', (event) => {
@@ -123,4 +122,3 @@ inputElement.addEventListener('keydown', (event) => {
 		}
 	}
 });
-*/
