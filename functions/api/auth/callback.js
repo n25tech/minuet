@@ -6,6 +6,7 @@ export async function onRequestPost(context) {
     const request = context.request;
     const formData = await request.formData();
     const idToken = formData.get('credential'); // The JWT sent from the navbar code
+    let return_code = 200; // default success code
 
     if (!idToken) {
       return new Response('Missing credential token', { status: 400 });
@@ -22,8 +23,8 @@ export async function onRequestPost(context) {
     const payload = await verifyResponse.json();
 
     // 2. Security Check: Ensure the token was generated for YOUR app
-    if (payload.aud !== context.env.GOOGLE_CLIENT_ID && payload.email_verified !== 'true') {
-      console.error(`Audience mismatch: expected ${context.env.GOOGLE_CLIENT_ID}, got ${payload.aud}`);
+    if (payload.aud !== context.env.GOOGLE_CLIENT_ID || payload.email_verified !== 'true') {
+      console.error(`Audience mismatch: expected ${context.env.GOOGLE_CLIENT_ID}, got ${payload.aud} and email_verified: ${payload.email_verified}`);
       return new Response('Audience mismatch: Security validation failed', { status: 403 });
     }
 
@@ -31,16 +32,23 @@ export async function onRequestPost(context) {
     // const email = payload.email;
     // const name = payload.name;
     // const googleUserId = payload.sub;
-    let userId = await getUserIdByEmail(context.env.DB, payload.email);
+    if (!payload.email || !payload.name || !payload.sub) {
+      return new Response('Missing required user information from Google token', { status: 400 });
+    }
+    console.log('Verified Google user, signing in');
+
+    let userId = await getUserIdByEmail(context.env.db, payload.email);
     if (!userId) {
       // User doesn't exist, create a new user in the database
-      console.log(`Creating new user.`);
-      userId = await createUser(context.env.DB, { email: payload.email, name: payload.name, googleUserId: payload.sub });
+      userId = await createUser(context.env.db, { email: payload.email, name: payload.name, googleUserId: payload.sub });
+      console.log(`Created new user with ID: ${userId}`);
+      return_code = 201; // Created
     }
 
     if (!userId) {
       return new Response('Failed to create or retrieve user', { status: 500 });
     }
+    console.log(`User ID: ${userId}`);
 
     // 3. Generate your application's session token 
     const { sessionId, ttl } = await createSession(context, userId);
@@ -50,14 +58,13 @@ export async function onRequestPost(context) {
 
     // 4. Send the Set-Cookie header and redirect them smoothly out of the API route
     return new Response(null, {
-      status: 302,
+      status: return_code,
       headers: {
-        'Location': '/', // Where the user lands after successful navbar login
         'Set-Cookie': `minuet_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${ttl}`
       }
     });
 
   } catch (error) {
-    return new Response(`Server Auth Error: ${error.message}`, { status: 500 });
+    return new Response(`Server Auth Error: ${error}`, { status: 500 });
   }
 }

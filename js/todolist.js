@@ -3,7 +3,7 @@
  */
 
 class TodoList {
-	constructor(uiContainer = "todolist-table-container", storageKey = "this.storageKey", uiItemInput = "new-item-input") {
+	constructor(uiContainer = "todolist-table-container", storageKey = "todolist", uiItemInput = "new-item-input") {
 		this.uiContainer = uiContainer;
 		this.storageKey = storageKey;
 		this.list = [];

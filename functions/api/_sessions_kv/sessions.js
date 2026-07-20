@@ -12,3 +12,12 @@ export async function createSession(context, userId) {
 
     return { sessionId, ttl };
 }
+
+export async function getUserIdFromSession(context, sessionId) {
+    const sessionData = await context.env.sessions.get(sessionId);
+    if (!sessionData) {
+        return null;
+    }
+    const {userId, expires} = JSON.parse(sessionData);
+    return userId;
+}

@@ -3,11 +3,11 @@ name = "minuet"
 pages_build_output_dir = ""
 compatibility_date = "2026-05-31"
 
-[[env.production.d1_databases]]
+[[d1_databases]]
 database_id = "4e3b9c36-14cd-4c23-81c5-fdfbbd9a99e4"
 binding = "db"
 database_name = "db"
 
-[[env.production.kv_namespaces]]
+[[kv_namespaces]]
 binding = "sessions"
 id = "113aaa8d19db4f10b3b1fc856af61dc7"
