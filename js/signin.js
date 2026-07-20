@@ -2,13 +2,16 @@ const GOOGLE_CLIENT_ID = "939463706311-ji3do0uatdidaeodo6ipt6ec9dhur0kg.apps.goo
 
 let googleAuthInitialized = false;
 
+const originDomain = window.location.origin; //https://minuet.n25tech.com
+
 function handleCredentialResponse(response) {
     // Send the returned credential to the backend for verification.
-    fetch("https://minuet.n25tech.com/api/auth/callback", {
+    const resp = fetch(`${originDomain}/api/auth/callback`, {
         method: "POST",
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
         body: "credential=" + encodeURIComponent(response.credential)
     });
+    console.log(resp);
 }
 
 function initGoogleAuth() {

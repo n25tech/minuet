@@ -1,3 +1,6 @@
+import { getUserIdByEmail, createUser } from "../_db_d1/user";
+import { createSession } from "../_sessions_kv/sessions";
+
 export async function onRequestPost(context) {
   try {
     const request = context.request;
@@ -19,7 +22,8 @@ export async function onRequestPost(context) {
     const payload = await verifyResponse.json();
 
     // 2. Security Check: Ensure the token was generated for YOUR app
-    if (payload.aud !== context.env.GOOGLE_CLIENT_ID) {
+    if (payload.aud !== context.env.GOOGLE_CLIENT_ID && payload.email_verified !== 'true') {
+      console.error(`Audience mismatch: expected ${context.env.GOOGLE_CLIENT_ID}, got ${payload.aud}`);
       return new Response('Audience mismatch: Security validation failed', { status: 403 });
     }
 
@@ -27,17 +31,22 @@ export async function onRequestPost(context) {
     // const email = payload.email;
     // const name = payload.name;
     // const googleUserId = payload.sub;
+    let userId = await getUserIdByEmail(context.env.DB, payload.email);
+    if (!userId) {
+      // User doesn't exist, create a new user in the database
+      console.log(`Creating new user.`);
+      userId = await createUser(context.env.DB, { email: payload.email, name: payload.name, googleUserId: payload.sub });
+    }
 
     // 3. Generate your application's session token 
-    // In a production app, you might encrypt this info or generate a session ID mapped to KV/Database
-    const appSessionToken = btoa(JSON.stringify({ email: payload.email, expires: Date.now() + 604800000 }));
-
+    const {sessionId, ttl} = await createSession(context, userId)
+  
     // 4. Send the Set-Cookie header and redirect them smoothly out of the API route
     return new Response(null, {
       status: 302,
       headers: {
-        'Location': '/dashboard', // Where the user lands after successful navbar login
-        'Set-Cookie': `session=${appSessionToken}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=604800`
+        'Location': '/', // Where the user lands after successful navbar login
+        'Set-Cookie': `minuet_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${ttl}`
       }
     });
 

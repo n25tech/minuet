@@ -7,3 +7,7 @@ compatibility_date = "2026-05-31"
 database_id = "4e3b9c36-14cd-4c23-81c5-fdfbbd9a99e4"
 binding = "db"
 database_name = "db"
+
+[[kv_namespaces]]
+binding = "sessions"
+id = "minuet"
