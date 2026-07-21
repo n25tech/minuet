@@ -2,32 +2,75 @@
  * Creates a To-do list that consists of an array of objects, each object has the format: {"text": "", "complete": false, "deleted": false, "order": 1, "id": ""}
  */
 
+class TodoListStateMgr {
+	constructor() {
+		this.originDomain = window.location.origin;
+		this.endpointUrl = `${this.originDomain}/api/storage/todolist`;
+	}
+
+	async loadStateRemote(state) {
+		try {
+			const response = await fetch(this.endpointUrl);
+			if (response.status != 200) {
+				return null;
+			}
+			const data = await response.json()
+			return data;
+		} catch (error) {
+			console.error(error.message);
+			return null;
+		}
+	}
+
+	async saveStateRemote(state) {
+		try {
+			const response = await fetch(this.endpointUrl, {
+				method: 'POST',
+				credentials: 'include',
+				headers: {
+					'Content-Type': 'application/json',
+				},
+				body: JSON.stringify(state),
+			});
+		} catch (error) {
+			console.error(error.message);
+			return null;
+		}
+	}
+
+}
+
 class TodoList {
 	constructor(uiContainer = "todolist-table-container", storageKey = "todolist", uiItemInput = "new-item-input") {
+		this.stateMgr = new TodoListStateMgr();
 		this.uiContainer = uiContainer;
 		this.storageKey = storageKey;
 		this.list = [];
 		this.completedList = [];
 		this.uiItemInput = uiItemInput;
 	}
-	init() {
-		this.loadState();
+	async init() {
+		await this.loadState();
 		this.displayList();
 		return this;
 	}
-	loadState() {
-		let state = localStorage.getItem(this.storageKey) ? JSON.parse(localStorage.getItem(this.storageKey)) : { list: [], completedList: [] };
+	async loadState() {
+		let state = this.stateMgr.loadStateRemote();
+		if (!state) {
+			state = localStorage.getItem(this.storageKey) ? JSON.parse(localStorage.getItem(this.storageKey)) : { list: [], completedList: [] };
+		}
 		this.list = state.list || [];
 		this.completedList = state.completedList || [];
 	}
-	saveState() {
+	async saveState() {
 		let state = {
 			list: this.list,
 			completedList: this.completedList
 		};
+		await this.stateMgr.saveStateRemote(state);
 		localStorage.setItem(this.storageKey, JSON.stringify(state));
 	}
-	deleteState() {
+	async deleteState() {
 		this.list = [];
 		this.completedList = [];
 		localStorage.removeItem(this.storageKey);
@@ -47,31 +90,31 @@ class TodoList {
 		return item;
 	}
 
-	addItem() {
+	async addItem() {
 		const input = document.getElementById(this.uiItemInput);
 		const newItemText = input.value.trim();
 		if (newItemText) {
 			const newItem = this._idNewItem(newItemText);
 			this.list.push(newItem);
-			this.saveState();
+			await this.saveState();
 			this.displayList();
 			input.value = "";
 		}
 	}
 
-	markComplete(id) {
+	async markComplete(id) {
 		const item = this.list.find(item => item.id === id);
 		if (item) {
 			this.list = this.list.filter(i => i.id !== id);
 			this.completedList.push(item);
-			this.saveState();
+			await this.saveState();
 			this.displayList();
 		}
 	}
-	clearCompleted() {
+	async clearCompleted() {
 		//this.list = this.list.filter(item => !item.complete);
 		this.completedList = [];
-		this.saveState();
+		await this.saveState();
 		this.displayList();
 	}
 	displayList() {
@@ -103,22 +146,23 @@ class TodoList {
 
 let todoList;
 
-document.addEventListener('DOMContentLoaded', () => {
-	todoList = new TodoList().init();
+document.addEventListener('DOMContentLoaded', async () => {
+	todoList = new TodoList();
+	await todoList.init();
 });
 
 const inputElement = document.getElementById('new-item-input');
 
-inputElement.addEventListener('keydown', (event) => {
+inputElement.addEventListener('keydown', async (event) => {
 	// Check if the pressed key is "Enter"
 	if (event.key === 'Enter') {
 		// Prevent the default browser action if necessary
-		event.preventDefault(); 
-	    
+		event.preventDefault();
+
 		const inputValue = event.target.value.trim();
-	    
+
 		if (inputValue !== '') {
-			todoList.addItem();
+			await todoList.addItem();
 		}
 	}
 });

@@ -70,10 +70,10 @@
           <div id="todolist-table-container">
           </div>
           <input type="text" id="new-item-input" placeholder="New item">
-          <button onclick="todoList.addItem()">Add</button>
+          <button onclick="(async () => { await todoList.addItem(); })()">Add</button>
           <div>
             <br />
-            <button onclick="todoList.clearCompleted()">Clear Completed</button>
+            <button onclick="( async () => {await todoList.clearCompleted(); })()">Clear Completed</button>
           </div>
         </div>
       </div>

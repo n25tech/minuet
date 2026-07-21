@@ -20,9 +20,9 @@ const LoadMainPage = () => {
 
 LoadMainPage();
 //LoadSigninPage();
-
+/*
 const routes = {
-    "/": {
+    "/metrics": {
         title: "Metrics Dashboard",
         requiresShell: true,
         render: () => `<h2>Live Operational Status</h2>`
@@ -60,3 +60,4 @@ const router = () => {
 
     if (route.init) route.init();
 };
+*/
