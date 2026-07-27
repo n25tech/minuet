@@ -60,7 +60,7 @@ export async function onRequestPost(context) {
     return new Response(null, {
       status: return_code,
       headers: {
-        'Set-Cookie': `minuet_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=Lax; Max-Age=${ttl}`
+        'Set-Cookie': `minuet_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${ttl}`
       }
     });
 

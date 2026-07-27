@@ -4,7 +4,8 @@ if [[ $1 == "remote" ]]; then
 fi
 
 echo $LOCATION
-#npx wrangler d1 execute db "${LOCATION}" --command="DROP TABLE "
+npx wrangler d1 execute db "${LOCATION}" --command="DROP TABLE users;"
+npx wrangler d1 execute db "${LOCATION}" --command="DROP TABLE todolist;"
 
 npx wrangler d1 execute db "${LOCATION}" --command="\
 CREATE TABLE users (
@@ -23,6 +24,7 @@ CREATE TABLE todolist (
     text TEXT NOT NULL,
     sort_order INTEGER,
     complete INTEGER NOT NULL DEFAULT 0,
+    deleted INTEGER NOT NULL DEFAULT 0,
     created_at INTEGER NOT NULL,
     updated_at INTEGER NOT NULL,
     deleted_at INTEGER,

@@ -5,13 +5,22 @@
 class TodoListStateMgr {
 	constructor() {
 		this.originDomain = window.location.origin;
-		this.endpointUrl = `${this.originDomain}/api/storage/todolist`;
+		this.endpointUrl = this.getEndpointUrl();
+	}
+
+	getEndpointUrl() {
+		//return this.endpointUrl = `${this.originDomain}/api/storage/todolist`;
+		return 'http://localhost:8788/api/storage/todolist';
 	}
 
 	async loadStateRemote(state) {
 		try {
-			const response = await fetch(this.endpointUrl);
+			const response = await fetch(this.endpointUrl, {
+				method: 'GET',
+				credentials: 'include',
+			});
 			if (response.status != 200) {
+				console.error(response);
 				return null;
 			}
 			const data = await response.json()
@@ -32,6 +41,7 @@ class TodoListStateMgr {
 				},
 				body: JSON.stringify(state),
 			});
+			console.log(response);
 		} catch (error) {
 			console.error(error.message);
 			return null;
@@ -55,7 +65,7 @@ class TodoList {
 		return this;
 	}
 	async loadState() {
-		let state = this.stateMgr.loadStateRemote();
+		let state = await this.stateMgr.loadStateRemote();
 		if (!state) {
 			state = localStorage.getItem(this.storageKey) ? JSON.parse(localStorage.getItem(this.storageKey)) : { list: [], completedList: [] };
 		}
@@ -105,14 +115,16 @@ class TodoList {
 	async markComplete(id) {
 		const item = this.list.find(item => item.id === id);
 		if (item) {
-			this.list = this.list.filter(i => i.id !== id);
-			this.completedList.push(item);
+			//this.list = this.list.filter(i => i.id !== id);
+			//this.completedList.push(item);
+			item.complete = true;
+			//this.list.push(item);
 			await this.saveState();
 			this.displayList();
 		}
 	}
 	async clearCompleted() {
-		//this.list = this.list.filter(item => !item.complete);
+		this.list = this.list.filter(item => !item.complete);
 		this.completedList = [];
 		await this.saveState();
 		this.displayList();
@@ -120,23 +132,32 @@ class TodoList {
 	displayList() {
 		const containerInstance = document.getElementById(this.uiContainer);
 		containerInstance.innerHTML = '';
+		/*
 		this.completedList.forEach((item) => {
 			const p = document.createElement("p");
 			p.style.textDecoration = "line-through";
 			p.textContent = item.text;
 			containerInstance.appendChild(p);
 		});
+		*/
 		this.list.forEach((item) => {
-			const p = document.createElement("p");
-			const b = document.createElement("button");
-			p.style.textDecoration = "none";
-			p.textContent = item.text;
-			b.textContent = item.complete ? "Mark Incomplete" : "Mark Complete";
-			b.onclick = () => {
-				this.markComplete(item.id);
+			if (item.complete == true) {
+				const p = document.createElement("p");
+				p.style.textDecoration = "line-through";
+				p.textContent = item.text;
+				containerInstance.appendChild(p);
+			} else {
+				const p = document.createElement("p");
+				const b = document.createElement("button");
+				p.style.textDecoration = "none";
+				p.textContent = item.text;
+				b.textContent = item.complete ? "Mark Incomplete" : "Mark Complete";
+				b.onclick = () => {
+					this.markComplete(item.id);
+				}
+				containerInstance.appendChild(p);
+				containerInstance.appendChild(b);
 			}
-			containerInstance.appendChild(p);
-			containerInstance.appendChild(b);
 		}
 		)
 	}
