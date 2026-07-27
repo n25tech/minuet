@@ -2,7 +2,7 @@ const GOOGLE_CLIENT_ID = "939463706311-ji3do0uatdidaeodo6ipt6ec9dhur0kg.apps.goo
 
 let googleAuthInitialized = false;
 
-const originDomain = window.location.origin; //https://minuet.n25tech.com
+const originDomain = window.APP_CONFIG.BACKEND_API_URL;
 
 function handleCredentialResponse(response) {
     // Send the returned credential to the backend for verification.

@@ -4,16 +4,12 @@
 
 class TodoListStateMgr {
 	constructor() {
-		this.originDomain = window.location.origin;
-		this.endpointUrl = this.getEndpointUrl();
+		this.originDomain = window.APP_CONFIG.BACKEND_API_URL;
+		this.endpointUrl = `${this.originDomain}/api/storage/todolist`;
+		this.storageKey = "todolist";
 	}
 
-	getEndpointUrl() {
-		//return this.endpointUrl = `${this.originDomain}/api/storage/todolist`;
-		return 'http://localhost:8788/api/storage/todolist';
-	}
-
-	async loadStateRemote(state) {
+	async loadStateRemote() {
 		try {
 			const response = await fetch(this.endpointUrl, {
 				method: 'GET',
@@ -48,13 +44,29 @@ class TodoListStateMgr {
 		}
 	}
 
+	async loadStateLocal() {
+		const state = localStorage.getItem(this.storageKey) ? JSON.parse(localStorage.getItem(this.storageKey)) : { list: [], completedList: [] };
+		return state;
+	}
+
+	async saveStateLocal(state) {
+		localStorage.setItem(this.storageKey, JSON.stringify(state));
+	}
+
+	async loadState() {
+		const remoteState = this.loadStateRemote();
+		return remoteState;
+	}
+	async saveState(state) {
+		return this.saveStateRemote(state);
+	}
+
 }
 
 class TodoList {
-	constructor(uiContainer = "todolist-table-container", storageKey = "todolist", uiItemInput = "new-item-input") {
+	constructor(uiContainer = "todolist-table-container", uiItemInput = "new-item-input") {
 		this.stateMgr = new TodoListStateMgr();
 		this.uiContainer = uiContainer;
-		this.storageKey = storageKey;
 		this.list = [];
 		this.completedList = [];
 		this.uiItemInput = uiItemInput;
@@ -65,10 +77,7 @@ class TodoList {
 		return this;
 	}
 	async loadState() {
-		let state = await this.stateMgr.loadStateRemote();
-		if (!state) {
-			state = localStorage.getItem(this.storageKey) ? JSON.parse(localStorage.getItem(this.storageKey)) : { list: [], completedList: [] };
-		}
+		let state = await this.stateMgr.loadState();
 		this.list = state.list || [];
 		this.completedList = state.completedList || [];
 	}
@@ -77,8 +86,7 @@ class TodoList {
 			list: this.list,
 			completedList: this.completedList
 		};
-		await this.stateMgr.saveStateRemote(state);
-		localStorage.setItem(this.storageKey, JSON.stringify(state));
+		await this.stateMgr.saveState(state);
 	}
 	async deleteState() {
 		this.list = [];
