@@ -1,3 +1,3 @@
 window.APP_CONFIG = {
-    BACKEND_API_URL: "http://localhost:8788"
+    BACKEND_API_URL: "https://minuet.n25tech.com"
 };
