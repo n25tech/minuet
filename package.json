@@ -1,0 +1,23 @@
+{
+  "name": "minuet",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler pages dev public --port 3000",
+    "build": "node scripts/build.js",
+    "predev": "npm run build",
+    "test": "node --test",
+    "db:migrate": "wrangler d1 migrations apply db --local",
+    "db:migrate:remote": "wrangler d1 migrations apply db --remote"
+  },
+  "dependencies": {
+    "jose": "6.2.12"
+  },
+  "devDependencies": {
+    "wrangler": "4.129.1"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}
