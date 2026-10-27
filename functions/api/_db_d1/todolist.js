@@ -5,7 +5,7 @@ export async function fetchTodoListForUser(db, userId) {
     const { results } = await db.prepare('SELECT * FROM todolist WHERE user_id = ? AND deleted = 0 ORDER BY sort_order, id').bind(userId).all();
     return { list: results.map(item => ({ id: String(item.id), text: item.text, complete: !!item.complete })), version: 0 };
 }
-export async function saveTodoListForUser(db, userId, list, version) {
+export async function saveTodoListForUser(db, userId, list, version = 0) {
     // A version check prevents another device/tab's newer tasks being overwritten.
     const result = await db.prepare(`INSERT INTO todo_state (user_id, list, version)
         SELECT ?, ?, 1 WHERE ? = 0 OR EXISTS (SELECT 1 FROM todo_state WHERE user_id = ?)
