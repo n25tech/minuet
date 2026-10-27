@@ -8,7 +8,7 @@ export async function onRequestPost(context) {
     const body = await context.request.json();
     console.log(`body: ${JSON.stringify(body)}`);
 
-    const result = saveTodoListForUser(userId, body.list);
+    const result = await saveTodoListForUser(context.env.db, userId, body.list, body.version || 0);
     console.log(`results for user_id: ${userId}, ${JSON.stringify(result)}`);
 
     return new Response(JSON.stringify(result), {
@@ -23,7 +23,7 @@ export async function onRequestGet(context) {
   try {
     console.log('fetching userId');
     const userId = await getUserIdFromSession(context);
-    const results = fetchTodoListForUser(userId);
+    const results = await fetchTodoListForUser(context.env.db, userId);
     console.log(`results for user_id: ${userId}, ${JSON.stringify(results)}`);
 
     return new Response(JSON.stringify(results), {
