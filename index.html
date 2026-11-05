@@ -9,9 +9,9 @@
   <link rel="icon" type="image/x-icon" href="assets/images/favicon.svg" />
   <title class="timer-display">Minuet: a minimalist productivity app</title>
   <script src="js/config.js?v=2" defer></script>
-  <script src="js/app.js?v=2" defer></script>
+  <script src="js/app.js?v=4" defer></script>
   <script src="js/pomodoro.js?v=2" defer></script>
-  <script src="js/signin.js?v=3" defer></script>
+  <script src="js/signin.js?v=4" defer></script>
   <script src="js/sync.js?v=3" defer></script>
   <script src="js/todolist.js?v=3" defer></script>
   <script src="js/notes.js?v=3" defer></script>
@@ -19,7 +19,6 @@
   <link rel="stylesheet" href="assets/css/light_theme.css?v=2">
   <link rel="stylesheet" href="assets/css/dark_theme.css?v=2">
   <link rel="stylesheet" href="assets/css/main_page.css?v=3">
-  <link rel="stylesheet" href="assets/css/signin_page.css?v=2">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -35,19 +34,6 @@
 <body>
   <div id="app"></div>
   <!--TEMPLATES-->
-  <!--SIGNIN PAGE TEMPLATE-->
-  <template id="signin-page-template">
-    <h1>Sign In Page</h1>
-    <button onclick="LoadMainPage()">Load Main Page</button>
-    <div class="google-signin-wrapper">
-      <div id="g_id_onload" data-client_id="939463706311-ji3do0uatdidaeodo6ipt6ec9dhur0kg.apps.googleusercontent.com"
-        data-login_uri="https://minuet.n25tech.com/api/auth/callback" data-auto_prompt="false">
-      </div>
-      <div class="g_id_signin" data-type="standard" data-size="large" data-theme="outline" data-text="sign_in_with"
-        data-shape="rectangular" data-logo_alignment="left">
-      </div>
-    </div>
-  </template>
   <!--MAIN PAGE TEMPLATE-->
   <template id="main-page-template">
     <div id="main-page" class="main-page">

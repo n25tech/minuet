@@ -14,7 +14,7 @@ A pomodoro app written in vanilla js.
 * White noise machine
 
 ### Run Locally:
-`./cmd.sh`
+`npm install && npm run dev` - serves the app and API at http://localhost:3000
 
 ### Database:
 
