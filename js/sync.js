@@ -6,6 +6,10 @@
  * it was based on; if another device saved first the server answers 409 with its
  * current value, which is merged with the local edits (3-way, using the last value
  * both sides agreed on) and saved again.
+ *
+ * Every signed-in save is also kept in localStorage ("<localKey>:unsynced:<userId>") until the
+ * server confirms it; if it never does, it is merged back in and uploaded the next
+ * time this device reaches the server.
  */
 class SyncedDoc {
 	constructor({ endpoint, field, localKey, empty, merge, isEmpty, onRemoteChange, isBusy, normalize, current }) {
@@ -23,6 +27,7 @@ class SyncedDoc {
 		this.base = empty();   // last value known to match the server
 		this.version = 0;
 		this.remote = false;   // true while signed in and talking to the backend
+		this.userId = null;   // account the remote value belongs to
 		this.saving = Promise.resolve();
 		this.pending = 0;
 	}
@@ -49,9 +54,44 @@ class SyncedDoc {
 		}
 	}
 
+	get unsyncedKey() {
+		return `${this.localKey}:unsynced:${this.userId}`;
+	}
+
+	_loadUnsynced() {
+		try {
+			return JSON.parse(localStorage.getItem(this.unsyncedKey));
+		} catch (error) {
+			console.error(error);
+			return null;
+		}
+	}
+
+	_saveUnsynced() {
+		try {
+			localStorage.setItem(this.unsyncedKey, JSON.stringify({ value: this.value, base: this.base }));
+		} catch (error) {
+			console.error(error);
+		}
+	}
+
+	/* Merge an earlier failed save into the server value just fetched, and upload it. */
+	async _applyUnsynced() {
+		const unsynced = this._loadUnsynced();
+		if (unsynced) await this.save(this.merge(unsynced.base, unsynced.value, this.value));
+	}
+
+	/* The session ended on the server: show the user as signed out. */
+	_sessionEnded() {
+		if (this.signedIn) window.minuetAuth.sessionExpired();
+	}
+
 	async _fetchRemote() {
 		const response = await fetch(this.endpointUrl, { credentials: "include" });
-		if (response.status === 401) return null;
+		if (response.status === 401) {
+			this._sessionEnded();
+			return null;
+		}
 		if (!response.ok) throw new Error(`GET ${this.endpointUrl} failed: ${response.status}`);
 		return response.json();
 	}
@@ -85,9 +125,11 @@ class SyncedDoc {
 				return;
 			}
 			this.remote = true;
+			this.userId = window.minuetAuth.user.userId;
 			this.version = data.version || 0;
 			this.value = data[this.field] ?? this.empty();
 			this.base = structuredClone(this.value);
+			await this._applyUnsynced();
 
 			// First sign-in on this device with nothing on the server yet:
 			// carry over whatever was written while signed out.
@@ -112,10 +154,21 @@ class SyncedDoc {
 			this._saveLocal(value);
 			return Promise.resolve(true);
 		}
+		this._saveUnsynced();
 		this.pending++;
 		this.saving = this.saving
 			.then(() => this._saveRemote())
-			.then(() => true, (error) => { console.error(error); return false; })
+			.then(
+				() => {
+					if (this.pending === 1) localStorage.removeItem(this.unsyncedKey);
+					return true;
+				},
+				(error) => {
+					console.error(error);
+					if (error.status === 401) this._sessionEnded();
+					return false;
+				},
+			)
 			.finally(() => { this.pending--; });
 		return this.saving;
 	}
@@ -130,7 +183,7 @@ class SyncedDoc {
 				return;
 			}
 			if (response.status !== 409) {
-				throw new Error(`Save failed: ${response.status} ${await response.text()}`);
+				throw Object.assign(new Error(`Save failed: ${response.status} ${await response.text()}`), { status: response.status });
 			}
 			// Another device saved first: merge their changes with ours and retry.
 			const server = await response.json();
@@ -148,10 +201,12 @@ class SyncedDoc {
 		if (!this.remote || this.pending > 0 || this.isBusy()) return;
 		try {
 			const data = await this._fetchRemote();
-			if (!data || this.pending > 0 || this.isBusy() || data.version === this.version) return;
+			if (!data || this.pending > 0 || this.isBusy()) return;
+			if (data.version === this.version && !this._loadUnsynced()) return;
 			this.version = data.version;
 			this.value = data[this.field] ?? this.empty();
 			this.base = structuredClone(this.value);
+			await this._applyUnsynced();
 			if (this.onRemoteChange) this.onRemoteChange(structuredClone(this.value));
 		} catch (error) {
 			console.error(error);

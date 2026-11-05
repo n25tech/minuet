@@ -8,7 +8,7 @@ const MARKER = '--- From another device ---';
 
 // Runs the real browser scripts (sync.js + notes.js) in a sandbox with a fake DOM,
 // localStorage and a scripted backend that follows the /api/storage/notes contract.
-function loadNotes({ local, server, onPost }) {
+function loadNotes({ local, server, onPost, storage = new Map(), postStatus }) {
     const listeners = {};
     const textarea = {
         value: '',
@@ -17,13 +17,15 @@ function loadNotes({ local, server, onPost }) {
         addEventListener: (type, fn) => { listeners[type] = fn; },
         setSelectionRange() {},
     };
-    const storage = new Map(local === undefined ? [] : [['notes', JSON.stringify(local)]]);
+    if (local !== undefined) storage.set('notes', JSON.stringify(local));
+    const auth = { user: { userId: 'user-1', email: 'me@example.com' }, ready: new Promise(() => {}), expired: 0 };
+    auth.sessionExpired = () => { auth.expired++; auth.user = null; };
     const posts = [];
     const sandbox = {
         console, setTimeout, clearTimeout, structuredClone, Response, JSON,
         window: {
             APP_CONFIG: { BACKEND_API_URL: '' },
-            minuetAuth: { user: { email: 'me@example.com' }, ready: new Promise(() => {}) },
+            minuetAuth: auth,
             addEventListener() {},
         },
         document: {
@@ -42,6 +44,8 @@ function loadNotes({ local, server, onPost }) {
             const body = JSON.parse(options.body);
             posts.push(body);
             onPost?.(body, posts.length);
+            if (postStatus === 'network') throw new TypeError('Failed to fetch');
+            if (postStatus) return new Response('{}', { status: postStatus });
             if (body.version !== server.version) return new Response(JSON.stringify(server), { status: 409 });
             server.content = body.content;
             server.version++;
@@ -51,7 +55,7 @@ function loadNotes({ local, server, onPost }) {
     vm.createContext(sandbox);
     vm.runInContext(source('sync.js') + source('notes.js'), sandbox);
     const notes = vm.runInContext('notes', sandbox);
-    return { notes, textarea, storage, posts, server, type: text => { textarea.value = text; listeners.input(); } };
+    return { notes, textarea, storage, posts, server, auth, type: text => { textarea.value = text; listeners.input(); } };
 }
 
 test('First sign-in upload that hits a conflict keeps the anonymous notes', async () => {
@@ -92,4 +96,42 @@ test('Typing while a conflicting save is in flight is not lost', async () => {
     await env.notes.flush();
     assert.ok(env.server.content.includes('A plus more typing'), env.server.content);
     assert.ok(env.server.content.includes('other device'), env.server.content);
+});
+
+test('A signed-in edit that fails to reach the server is uploaded after a reload', async () => {
+    const storage = new Map();
+    const server = { content: 'start', version: 1 };
+    const offline = loadNotes({ storage, server, postStatus: 'network' });
+    offline.textarea.value = await offline.notes.doc.load();
+    offline.type('edited offline');
+    assert.strictEqual(await offline.notes.flush(), false);
+
+    // Meanwhile another device saved, then this page is reloaded with the network back.
+    Object.assign(server, { content: 'other device', version: 2 });
+    const online = loadNotes({ storage, server });
+    const loaded = await online.notes.doc.load();
+    assert.ok(server.content.includes('edited offline'), server.content);
+    assert.ok(server.content.includes('other device'), server.content);
+    assert.strictEqual(loaded, server.content);
+    assert.deepStrictEqual([...storage.keys()], []);
+});
+
+test('An expired session signs the user out and keeps the edit for the next sign-in', async () => {
+    const storage = new Map();
+    const server = { content: 'start', version: 1 };
+    const expired = loadNotes({ storage, server, postStatus: 401 });
+    expired.textarea.value = await expired.notes.doc.load();
+    expired.type('typed after expiry');
+    assert.strictEqual(await expired.notes.flush(), false);
+    assert.strictEqual(expired.auth.expired, 1);
+    assert.strictEqual(expired.auth.user, null);
+
+    // Signing in as someone else on this device must not pick up the edit.
+    const otherUser = loadNotes({ storage, server: { content: '', version: 0 } });
+    otherUser.auth.user = { userId: 'user-2' };
+    assert.strictEqual(await otherUser.notes.doc.load(), '');
+
+    const again = loadNotes({ storage, server });
+    assert.strictEqual(await again.notes.doc.load(), 'typed after expiry');
+    assert.deepStrictEqual(server, { content: 'typed after expiry', version: 2 });
 });

@@ -8,8 +8,9 @@ const originDomain = window.APP_CONFIG.BACKEND_API_URL;
  * Auth state shared with the rest of the app.
  * window.minuetAuth.user is null when signed out, or { userId, email, name } when signed in.
  * A "minuet:auth" event is dispatched on document whenever it changes.
+ * sessionExpired() is called by sync.js when the server rejects the session.
  */
-window.minuetAuth = { user: null };
+window.minuetAuth = { user: null, sessionExpired: () => setCurrentUser(null) };
 
 function setCurrentUser(user) {
     window.minuetAuth.user = user && user.userId ? user : null;
