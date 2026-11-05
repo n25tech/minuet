@@ -5,6 +5,12 @@ const ALLOWED_ORIGINS = [
   "http://localhost:3000" // For local development
 ];
 
+const SAFE_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function isTrustedOrigin(origin, request) {
+  return ALLOWED_ORIGINS.includes(origin) || origin === new URL(request.url).origin;
+}
+
 async function corsMiddleware(context) {
   const { request, next } = context;
   const origin = request.headers.get("Origin");
@@ -21,6 +27,12 @@ async function corsMiddleware(context) {
   // Handle preflight requests immediately
   if (request.method === "OPTIONS") {
     return new Response(null, { status: 204, headers: corsHeaders });
+  }
+
+  // CSRF protection: the session cookie is SameSite=None, so refuse state-changing
+  // requests that a browser sent from any origin other than ours.
+  if (!SAFE_METHODS.has(request.method) && origin !== null && !isTrustedOrigin(origin, request)) {
+    return new Response("Forbidden origin", { status: 403, headers: corsHeaders });
   }
 
   // Execute the target function (e.g., onRequestGet)

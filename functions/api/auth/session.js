@@ -2,8 +2,9 @@ import { getUserIdFromSession, getSessionId, sessionCookie } from '../_sessions_
 export async function onRequestGet(context) {
     const userId = await getUserIdFromSession(context);
     if (!userId) return Response.json({ userId: null });
-    const user = await context.env.db.prepare('SELECT name FROM users WHERE user_id = ?').bind(userId).first();
-    return Response.json({ userId: user ? userId : null, name: user?.name || '' });
+    const user = await context.env.db.prepare('SELECT name, email FROM users WHERE user_id = ?').bind(userId).first();
+    if (!user) return Response.json({ userId: null });
+    return Response.json({ userId, name: user.name || '', email: user.email });
 }
 export async function onRequestDelete(context) {
     const id = getSessionId(context.request);

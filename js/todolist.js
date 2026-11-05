@@ -1,196 +1,124 @@
 /*
- * Creates a To-do list that consists of an array of objects, each object has the format: {"text": "", "complete": false, "deleted": false, "order": 1, "id": ""}
+ * Creates a To-do list that consists of an array of objects, each object has the format: {"text": "", "complete": false, "order": 1, "id": ""}
+ * Synced to the backend when signed in (see sync.js), stored in localStorage otherwise.
  */
 
-class TodoListStateMgr {
-	constructor() {
-		this.originDomain = window.APP_CONFIG.BACKEND_API_URL;
-		this.endpointUrl = `${this.originDomain}/api/storage/todolist`;
-		this.storageKey = "todolist";
+/*
+ * 3-way merge of two edited lists against the last synced list:
+ * items added on either side are kept, items removed on either side are dropped,
+ * and an item completed on either side stays complete.
+ */
+function mergeTodoLists(base, mine, theirs) {
+	const baseIds = new Set(base.map(item => item.id));
+	const mineById = new Map(mine.map(item => [item.id, item]));
+	const theirIds = new Set(theirs.map(item => item.id));
+	const merged = [];
+	for (const item of theirs) {
+		const local = mineById.get(item.id);
+		if (local) {
+			merged.push({ ...item, complete: !!(item.complete || local.complete) });
+		} else if (!baseIds.has(item.id)) {
+			merged.push(item); // added on another device
+		} // else: removed locally
 	}
-
-	async loadStateRemote() {
-		try {
-			const response = await fetch(this.endpointUrl, {
-				method: 'GET',
-				credentials: 'include',
-			});
-			if (response.status != 200) {
-				console.error(response);
-				return null;
-			}
-			const data = await response.json()
-			return data;
-		} catch (error) {
-			console.error(error.message);
-			return null;
-		}
+	for (const item of mine) {
+		if (!theirIds.has(item.id) && !baseIds.has(item.id)) merged.push(item); // added locally
 	}
-
-	async saveStateRemote(state) {
-		try {
-			const response = await fetch(this.endpointUrl, {
-				method: 'POST',
-				credentials: 'include',
-				headers: {
-					'Content-Type': 'application/json',
-				},
-				body: JSON.stringify(state),
-			});
-			console.log(response);
-		} catch (error) {
-			console.error(error.message);
-			return null;
-		}
-	}
-
-	async loadStateLocal() {
-		const state = localStorage.getItem(this.storageKey) ? JSON.parse(localStorage.getItem(this.storageKey)) : { list: [], completedList: [] };
-		return state;
-	}
-
-	async saveStateLocal(state) {
-		localStorage.setItem(this.storageKey, JSON.stringify(state));
-	}
-
-	async loadState() {
-		const remoteState = this.loadStateRemote();
-		return remoteState;
-	}
-	async saveState(state) {
-		return this.saveStateRemote(state);
-	}
-
+	return merged;
 }
 
 class TodoList {
 	constructor(uiContainer = "todolist-table-container", uiItemInput = "new-item-input") {
-		this.stateMgr = new TodoListStateMgr();
 		this.uiContainer = uiContainer;
-		this.list = [];
-		this.completedList = [];
 		this.uiItemInput = uiItemInput;
+		this.list = [];
+		this.doc = new SyncedDoc({
+			endpoint: "/api/storage/todolist",
+			field: "list",
+			localKey: "todolist",
+			empty: () => [],
+			isEmpty: list => !Array.isArray(list) || list.length === 0,
+			merge: mergeTodoLists,
+			// Older localStorage data was saved as { list, completedList }.
+			normalize: value => Array.isArray(value) ? value : (value && value.list) || [],
+			onRemoteChange: list => this._setList(list),
+		});
 	}
-	async init() {
-		await this.loadState();
-		this.displayList();
+
+	init() {
+		bindSyncedDoc(this.doc, list => this._setList(list));
 		return this;
 	}
-	async loadState() {
-		let state = await this.stateMgr.loadState();
-		this.list = state.list || [];
-		this.completedList = state.completedList || [];
+
+	_setList(list) {
+		this.list = Array.isArray(list) ? list : [];
+		this.displayList();
 	}
+
 	async saveState() {
-		let state = {
-			list: this.list,
-			completedList: this.completedList
-		};
-		await this.stateMgr.saveState(state);
-	}
-	async deleteState() {
-		this.list = [];
-		this.completedList = [];
-		localStorage.removeItem(this.storageKey);
-		console.log('deleted state');
+		await this.doc.save(this.list.map(item => ({ ...item })));
 	}
 
 	_idNewItem(text) {
-		let order, id;
-		if (this.list.length > 0) {
-			order = this.list[this.list.length - 1]['order'] + 1;
-			id = this.list[this.list.length - 1]['id'] + 1;
-		} else {
-			order = 1;
-			id = 1;
-		}
-		const item = { "text": text, "order": order, "id": id };
-		return item;
+		const last = this.list[this.list.length - 1];
+		const order = last && Number.isFinite(last.order) ? last.order + 1 : this.list.length + 1;
+		return { id: crypto.randomUUID(), text, order, complete: false };
 	}
 
 	async addItem() {
 		const input = document.getElementById(this.uiItemInput);
 		const newItemText = input.value.trim();
 		if (newItemText) {
-			const newItem = this._idNewItem(newItemText);
-			this.list.push(newItem);
-			await this.saveState();
-			this.displayList();
+			this.list.push(this._idNewItem(newItemText));
 			input.value = "";
+			this.displayList();
+			await this.saveState();
 		}
 	}
 
 	async markComplete(id) {
 		const item = this.list.find(item => item.id === id);
 		if (item) {
-			//this.list = this.list.filter(i => i.id !== id);
-			//this.completedList.push(item);
 			item.complete = true;
-			//this.list.push(item);
-			await this.saveState();
 			this.displayList();
+			await this.saveState();
 		}
 	}
+
 	async clearCompleted() {
 		this.list = this.list.filter(item => !item.complete);
-		this.completedList = [];
-		await this.saveState();
 		this.displayList();
+		await this.saveState();
 	}
+
 	displayList() {
 		const containerInstance = document.getElementById(this.uiContainer);
+		if (!containerInstance) return;
 		containerInstance.innerHTML = '';
-		/*
-		this.completedList.forEach((item) => {
-			const p = document.createElement("p");
-			p.style.textDecoration = "line-through";
-			p.textContent = item.text;
-			containerInstance.appendChild(p);
-		});
-		*/
 		this.list.forEach((item) => {
-			if (item.complete == true) {
-				const p = document.createElement("p");
+			const p = document.createElement("p");
+			p.textContent = item.text;
+			if (item.complete) {
 				p.style.textDecoration = "line-through";
-				p.textContent = item.text;
 				containerInstance.appendChild(p);
 			} else {
-				const p = document.createElement("p");
 				const b = document.createElement("button");
 				p.style.textDecoration = "none";
-				p.textContent = item.text;
-				b.textContent = item.complete ? "Mark Incomplete" : "Mark Complete";
-				b.onclick = () => {
-					this.markComplete(item.id);
-				}
+				b.textContent = "Mark Complete";
+				b.onclick = () => this.markComplete(item.id);
 				containerInstance.appendChild(p);
 				containerInstance.appendChild(b);
 			}
-		}
-		)
+		});
 	}
-
 }
 
+const todoList = new TodoList().init();
 
-let todoList;
-
-document.addEventListener('DOMContentLoaded', async () => {
-	todoList = new TodoList();
-	await todoList.init();
-});
-
-const inputElement = document.getElementById('new-item-input');
-
-inputElement.addEventListener('keydown', async (event) => {
-	// Check if the pressed key is "Enter"
+document.getElementById('new-item-input').addEventListener('keydown', async (event) => {
 	if (event.key === 'Enter') {
-		// Prevent the default browser action if necessary
 		event.preventDefault();
-
-		const inputValue = event.target.value.trim();
-
-		if (inputValue !== '') {
+		if (event.target.value.trim() !== '') {
 			await todoList.addItem();
 		}
 	}

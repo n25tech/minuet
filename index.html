@@ -11,12 +11,14 @@
   <script src="js/config.js?v=2" defer></script>
   <script src="js/app.js?v=2" defer></script>
   <script src="js/pomodoro.js?v=2" defer></script>
-  <script src="js/todolist.js?v=2" defer></script>
-  <script src="js/signin.js?v=2" defer></script>
+  <script src="js/signin.js?v=3" defer></script>
+  <script src="js/sync.js?v=3" defer></script>
+  <script src="js/todolist.js?v=3" defer></script>
+  <script src="js/notes.js?v=3" defer></script>
   <link rel="stylesheet" href="assets/css/styles.css?v=2">
   <link rel="stylesheet" href="assets/css/light_theme.css?v=2">
   <link rel="stylesheet" href="assets/css/dark_theme.css?v=2">
-  <link rel="stylesheet" href="assets/css/main_page.css?v=2">
+  <link rel="stylesheet" href="assets/css/main_page.css?v=3">
   <link rel="stylesheet" href="assets/css/signin_page.css?v=2">
   <script>
     if ('serviceWorker' in navigator) {
@@ -58,10 +60,19 @@
         <h1 hidden="false">Minuet</h1>
         <span class="navbar-brand">Minuet</span>
         <div id="navbar-signin" class="navbar-signin">
-          <button class="signin-toggle" onclick="toggleSigninMenu()">Sign In ▾</button>
+          <button id="signin-toggle" class="signin-toggle" onclick="toggleSigninMenu()">Sign In ▾</button>
           <div id="signin-menu" class="signin-menu" hidden>
-            <div id="google-signin-button" class="signin-method"></div>
-            <!-- Add more authentication methods here -->
+            <div id="signin-methods" class="signin-methods">
+              <div id="google-signin-button" class="signin-method"></div>
+              <!-- Add more authentication methods here -->
+            </div>
+            <div id="account-panel" class="account-panel" hidden>
+              <span class="account-caption">Signed in as</span>
+              <strong id="account-name" class="account-name"></strong>
+              <span id="account-email" class="account-email"></span>
+              <span class="account-caption">To-dos and notes sync across your devices.</span>
+              <button class="signout-button" onclick="signOut()">Sign out</button>
+            </div>
           </div>
         </div>
       </nav>
