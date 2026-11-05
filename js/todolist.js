@@ -56,7 +56,7 @@ class TodoList {
 	}
 
 	async saveState() {
-		await this.doc.save(this.list.map(item => ({ ...item })));
+		await this.doc.save(this.list);
 	}
 
 	_idNewItem(text) {

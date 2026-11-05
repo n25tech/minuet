@@ -8,7 +8,7 @@
  * both sides agreed on) and saved again.
  */
 class SyncedDoc {
-	constructor({ endpoint, field, localKey, empty, merge, isEmpty, onRemoteChange, isBusy, normalize }) {
+	constructor({ endpoint, field, localKey, empty, merge, isEmpty, onRemoteChange, isBusy, normalize, current }) {
 		this.endpointUrl = `${window.APP_CONFIG.BACKEND_API_URL}${endpoint}`;
 		this.field = field;
 		this.localKey = localKey;
@@ -18,6 +18,7 @@ class SyncedDoc {
 		this.onRemoteChange = onRemoteChange;
 		this.normalize = normalize || (value => value);
 		this.isBusy = isBusy || (() => false);   // e.g. unsaved typing
+		this.current = current || (() => this.value);   // newest local value, including unsaved edits
 		this.value = empty();
 		this.base = empty();   // last value known to match the server
 		this.version = 0;
@@ -66,48 +67,55 @@ class SyncedDoc {
 
 	/* Load from the server when signed in, otherwise from localStorage. */
 	async load() {
+		await this._load();
+		return structuredClone(this.value);
+	}
+
+	async _load() {
 		if (!this.signedIn) {
 			this.remote = false;
 			this.value = this._loadLocal();
-			return this.value;
+			return;
 		}
 		try {
 			const data = await this._fetchRemote();
 			if (!data) {
 				this.remote = false;
 				this.value = this._loadLocal();
-				return this.value;
+				return;
 			}
 			this.remote = true;
 			this.version = data.version || 0;
-			this.value = this.base = data[this.field] ?? this.empty();
+			this.value = data[this.field] ?? this.empty();
+			this.base = structuredClone(this.value);
 
 			// First sign-in on this device with nothing on the server yet:
 			// carry over whatever was written while signed out.
 			const local = this._loadLocal();
 			if (this.version === 0 && this.isEmpty(this.value) && !this.isEmpty(local)) {
-				await this.save(local);
-				localStorage.removeItem(this.localKey);
+				if (await this.save(local)) localStorage.removeItem(this.localKey);
 			}
 		} catch (error) {
 			console.error(error);
 			this.remote = false;
 			this.value = this._loadLocal();
 		}
-		return this.value;
 	}
 
-	/* Save a new value. Saves are serialised so each one is based on the latest version. */
+	/*
+	 * Save a new value. Saves are serialised so each one is based on the latest version.
+	 * Resolves to true once the value is stored, false if the server write failed.
+	 */
 	save(value) {
-		this.value = value;
+		this.value = structuredClone(value);
 		if (!this.remote) {
 			this._saveLocal(value);
-			return Promise.resolve();
+			return Promise.resolve(true);
 		}
 		this.pending++;
 		this.saving = this.saving
 			.then(() => this._saveRemote())
-			.catch((error) => console.error(error))
+			.then(() => true, (error) => { console.error(error); return false; })
 			.finally(() => { this.pending--; });
 		return this.saving;
 	}
@@ -118,7 +126,7 @@ class SyncedDoc {
 			const response = await this._postRemote(value, this.version);
 			if (response.ok) {
 				this.version = (await response.json()).version;
-				this.base = value;
+				this.base = structuredClone(value);
 				return;
 			}
 			if (response.status !== 409) {
@@ -127,10 +135,10 @@ class SyncedDoc {
 			// Another device saved first: merge their changes with ours and retry.
 			const server = await response.json();
 			const theirs = server[this.field] ?? this.empty();
-			this.value = this.merge(this.base, this.value, theirs);
-			this.base = theirs;
+			this.value = this.merge(this.base, this.current(), theirs);
+			this.base = structuredClone(theirs);
 			this.version = server.version;
-			if (this.onRemoteChange) this.onRemoteChange(this.value);
+			if (this.onRemoteChange) this.onRemoteChange(structuredClone(this.value));
 		}
 		throw new Error("Save failed: too many conflicting updates");
 	}
@@ -142,8 +150,9 @@ class SyncedDoc {
 			const data = await this._fetchRemote();
 			if (!data || this.pending > 0 || this.isBusy() || data.version === this.version) return;
 			this.version = data.version;
-			this.value = this.base = data[this.field] ?? this.empty();
-			if (this.onRemoteChange) this.onRemoteChange(this.value);
+			this.value = data[this.field] ?? this.empty();
+			this.base = structuredClone(this.value);
+			if (this.onRemoteChange) this.onRemoteChange(structuredClone(this.value));
 		} catch (error) {
 			console.error(error);
 		}

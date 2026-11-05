@@ -7,27 +7,36 @@ import * as todolistApi from '../functions/api/storage/todolist.js';
 import * as notesApi from '../functions/api/storage/notes.js';
 import * as sessionApi from '../functions/api/auth/session.js';
 import { onRequest as middleware } from '../functions/api/_middleware.js';
+import { DatabaseSync } from 'node:sqlite';
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-// Simple mock D1 database implementation for tests
-class MockD1Database {
+// D1-compatible adapter over a real in-memory SQLite database with the app's migrations applied,
+// so the production SQL (including the versioned upserts) is what gets exercised.
+const migrationsDir = fileURLToPath(new URL('../migrations/', import.meta.url));
+
+class SqliteD1Database {
     constructor() {
-        this.tables = {
-            users: new Map(),
-            todo_state: new Map(),
-            notes_state: new Map(),
-            todolist: []
-        };
+        this.sqlite = new DatabaseSync(':memory:');
+        for (const file of readdirSync(migrationsDir).filter(f => f.endsWith('.sql')).sort()) {
+            this.sqlite.exec(readFileSync(join(migrationsDir, file), 'utf8'));
+        }
     }
 
     prepare(query) {
-        return new MockD1PreparedStatement(this, query);
+        return new SqliteD1PreparedStatement(this.sqlite.prepare(query));
+    }
+
+    addUser(userId, email = `${userId}@example.com`, name = null) {
+        this.sqlite.prepare('INSERT INTO users (user_id, google_sub, email, name, created_at, updated_at) VALUES (?, ?, ?, ?, 0, 0)')
+            .run(userId, `sub-${userId}`, email, name);
     }
 }
 
-class MockD1PreparedStatement {
-    constructor(db, query) {
-        this.db = db;
-        this.query = query;
+class SqliteD1PreparedStatement {
+    constructor(statement) {
+        this.statement = statement;
         this.bindParams = [];
     }
 
@@ -37,46 +46,16 @@ class MockD1PreparedStatement {
     }
 
     async first() {
-        const results = await this.all();
-        return results.results[0] || null;
-    }
-
-    async run() {
-        // Mirrors the versioned upsert: insert only when version is 0 or a row exists,
-        // update only when the stored version matches.
-        const table = ['todo_state', 'notes_state'].find(t => this.query.includes(`INSERT INTO ${t}`));
-        if (table) {
-            const [userId, value, version] = this.bindParams;
-            const existing = this.db.tables[table].get(userId);
-            const valueKey = table === 'todo_state' ? 'list' : 'content';
-            const insertAllowed = version === 0 || !!existing;
-            if (!insertAllowed) return { meta: { changes: 0 } };
-            if (existing && existing.version !== version) return { meta: { changes: 0 } };
-            const newVersion = existing ? existing.version + 1 : 1;
-            this.db.tables[table].set(userId, { user_id: userId, [valueKey]: value, version: newVersion });
-            return { meta: { changes: 1 } };
-        }
-        return { meta: { changes: 1 } };
+        return (await this.all()).results[0] ?? null;
     }
 
     async all() {
-        if (this.query.includes('FROM todo_state')) {
-            const userId = this.bindParams[0];
-            const state = this.db.tables.todo_state.get(userId);
-            return { results: state ? [state] : [] };
-        }
-        if (this.query.includes('FROM notes_state')) {
-            const state = this.db.tables.notes_state.get(this.bindParams[0]);
-            return { results: state ? [state] : [] };
-        }
-        if (this.query.includes('FROM users')) {
-            const user = this.db.tables.users.get(this.bindParams[0]);
-            return { results: user ? [user] : [] };
-        }
-        if (this.query.includes('FROM todolist')) {
-            return { results: [] };
-        }
-        return { results: [] };
+        return { results: this.statement.all(...this.bindParams).map(row => ({ ...row })), meta: {} };
+    }
+
+    async run() {
+        const { changes } = this.statement.run(...this.bindParams);
+        return { results: [], meta: { changes: Number(changes) } };
     }
 }
 
@@ -100,8 +79,9 @@ class MockKVNamespace {
 }
 
 test('TodoList backend storage and retrieval', async () => {
-    const db = new MockD1Database();
+    const db = new SqliteD1Database();
     const userId = 'user-123';
+    db.addUser(userId);
     
     // Initial fetch should be empty
     const initial = await fetchTodoListForUser(db, userId);
@@ -141,7 +121,8 @@ test('Session creation and retrieval', async () => {
 });
 
 test('TodoList save is rejected when based on a stale version', async () => {
-    const db = new MockD1Database();
+    const db = new SqliteD1Database();
+    db.addUser('u');
     assert.strictEqual(await saveTodoListForUser(db, 'u', [{ id: 'a' }], 0), true);
     assert.strictEqual(await saveTodoListForUser(db, 'u', [{ id: 'b' }], 1), true);
     // A second device still on version 1 must not overwrite version 2.
@@ -150,7 +131,8 @@ test('TodoList save is rejected when based on a stale version', async () => {
 });
 
 test('Notes storage and versioning', async () => {
-    const db = new MockD1Database();
+    const db = new SqliteD1Database();
+    db.addUser('u');
     assert.deepStrictEqual(await fetchNotesForUser(db, 'u'), { content: '', version: 0 });
     assert.strictEqual(await saveNotesForUser(db, 'u', 'hello', 0), true);
     assert.strictEqual(await saveNotesForUser(db, 'u', 'stale', 0), false);
@@ -158,9 +140,9 @@ test('Notes storage and versioning', async () => {
 });
 
 async function makeEnv(userId) {
-    const env = { db: new MockD1Database(), sessions: new MockKVNamespace() };
+    const env = { db: new SqliteD1Database(), sessions: new MockKVNamespace() };
     if (!userId) return { env, cookie: '' };
-    env.db.tables.users.set(userId, { user_id: userId, email: 'me@example.com', name: 'Me' });
+    env.db.addUser(userId, 'me@example.com', 'Me');
     const { sessionId } = await createSession({ env }, userId);
     return { env, cookie: `minuet_session=${sessionId}` };
 }

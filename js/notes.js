@@ -26,6 +26,7 @@ class Notes {
 			isEmpty: content => !content,
 			merge: mergeNotes,
 			isBusy: () => this.timer !== null,
+			current: () => this.textarea.value,
 			onRemoteChange: content => this._setText(content),
 		});
 	}
