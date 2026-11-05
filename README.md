@@ -8,9 +8,9 @@ A pomodoro app written in vanilla js.
 * Pomodoro Timer
 * Todo list
 * Distraction diary
+* Google sign-in to sync the todo list and notes across devices
 
 ### Future Ideas:
-* Google/SSO signin to sync across devices
 * White noise machine
 
 ### Run Locally:
