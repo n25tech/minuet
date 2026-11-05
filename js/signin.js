@@ -8,9 +8,10 @@ const originDomain = window.APP_CONFIG.BACKEND_API_URL;
  * Auth state shared with the rest of the app.
  * window.minuetAuth.user is null when signed out, or { userId, email, name } when signed in.
  * A "minuet:auth" event is dispatched on document whenever it changes.
- * sessionExpired() is called by sync.js when the server rejects the session.
+ * sessionExpired() is called by sync.js when the server rejects the session;
+ * docs lists the SyncedDocs (sync.js) that must finish saving before sign-out.
  */
-window.minuetAuth = { user: null, sessionExpired: () => setCurrentUser(null) };
+window.minuetAuth = { user: null, sessionExpired: () => setCurrentUser(null), docs: [] };
 
 function setCurrentUser(user) {
     window.minuetAuth.user = user && user.userId ? user : null;
@@ -65,6 +66,7 @@ function unsyncedKeys(user) {
 }
 
 async function signOut() {
+    await Promise.all(window.minuetAuth.docs.map(doc => doc.settle()));
     const user = window.minuetAuth.user;
     const unsynced = user ? unsyncedKeys(user) : [];
     if (unsynced.length && !confirm("Some edits haven't synced to your account and will be lost on this device. Sign out anyway?")) return;

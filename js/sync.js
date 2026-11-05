@@ -12,7 +12,7 @@
  * time this device reaches the server.
  */
 class SyncedDoc {
-	constructor({ endpoint, field, localKey, empty, merge, isEmpty, onRemoteChange, isBusy, normalize, current }) {
+	constructor({ endpoint, field, localKey, empty, merge, isEmpty, onRemoteChange, isBusy, normalize, current, flushPending }) {
 		this.endpointUrl = `${window.APP_CONFIG.BACKEND_API_URL}${endpoint}`;
 		this.field = field;
 		this.localKey = localKey;
@@ -23,6 +23,7 @@ class SyncedDoc {
 		this.normalize = normalize || (value => value);
 		this.isBusy = isBusy || (() => false);   // e.g. unsaved typing
 		this.current = current || (() => this.value);   // newest local value, including unsaved edits
+		this.flushPending = flushPending || (() => {});   // start saving any unsaved edits now
 		this.value = empty();
 		this.base = empty();   // last value known to match the server
 		this.version = 0;
@@ -200,6 +201,12 @@ class SyncedDoc {
 		throw new Error("Save failed: too many conflicting updates");
 	}
 
+	/* Save any unsaved edits; resolves once every queued save has finished. */
+	settle() {
+		this.flushPending();
+		return this.saving;
+	}
+
 	/* Pull changes made on other devices (called when the tab regains focus). */
 	async refresh() {
 		if (!this.remote || this.pending > 0 || this.isBusy()) return;
@@ -224,6 +231,7 @@ class SyncedDoc {
  * whenever the tab becomes visible again.
  */
 function bindSyncedDoc(doc, onLoaded) {
+	window.minuetAuth.docs.push(doc);
 	const reload = async () => onLoaded(await doc.load());
 	(window.minuetAuth.ready || Promise.resolve()).then(reload);
 	document.addEventListener("minuet:auth", reload);

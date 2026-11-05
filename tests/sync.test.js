@@ -18,7 +18,7 @@ function loadNotes({ local, server, onPost, storage = new Map(), postStatus }) {
         setSelectionRange() {},
     };
     if (local !== undefined) storage.set('notes', JSON.stringify(local));
-    const auth = { user: { userId: 'user-1', email: 'me@example.com' }, ready: new Promise(() => {}), expired: 0 };
+    const auth = { user: { userId: 'user-1', email: 'me@example.com' }, ready: new Promise(() => {}), expired: 0, docs: [] };
     auth.sessionExpired = () => { auth.expired++; auth.user = null; };
     const posts = [];
     const sandbox = {
@@ -260,4 +260,53 @@ test('Sign out with unsynced edits asks first, then deletes only that user\'s co
     assert.strictEqual(confirmed.auth.user, null);
     assert.deepStrictEqual(confirmed.requests, ['GET', 'DELETE']);
     assert.deepStrictEqual([...storage.keys()].sort(), ['notes', 'notes:unsynced:user-2']);
+});
+
+test('Sign out waits for unsaved notes to reach the server before ending the session', async () => {
+    const storage = new Map();
+    const server = { content: 'start', version: 1 };
+    const requests = [];
+    const listeners = {};
+    const textarea = { value: '', addEventListener: (type, fn) => { listeners[type] = fn; }, setSelectionRange() {} };
+    let confirmed = 0;
+    const sandbox = {
+        console, CustomEvent, setTimeout, clearTimeout, structuredClone,
+        window: { APP_CONFIG: { BACKEND_API_URL: '' }, addEventListener() {} },
+        document: {
+            getElementById: id => id === 'notes-area' ? textarea : null,
+            addEventListener() {}, dispatchEvent() {}, activeElement: null, visibilityState: 'visible',
+        },
+        localStorage: {
+            get length() { return storage.size; },
+            key: i => [...storage.keys()][i] ?? null,
+            getItem: key => storage.has(key) ? storage.get(key) : null,
+            setItem: (key, value) => storage.set(key, String(value)),
+            removeItem: key => storage.delete(key),
+        },
+        confirm: () => { confirmed++; return true; },
+        fetch: async (url, options = {}) => {
+            const method = options.method || 'GET';
+            requests.push(`${method} ${url}`);
+            if (url === '/api/auth/session') return new Response(JSON.stringify({ userId: 'user-1' }));
+            if (method === 'GET') return new Response(JSON.stringify(server));
+            await new Promise(resolve => setTimeout(resolve, 5)); // the save is still in flight
+            const body = JSON.parse(options.body);
+            Object.assign(server, { content: body.content, version: server.version + 1 });
+            return new Response(JSON.stringify({ version: server.version }));
+        },
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(['signin.js', 'sync.js', 'notes.js'].map(source).join('\n'), sandbox);
+    const notes = vm.runInContext('notes', sandbox);
+    await sandbox.window.minuetAuth.ready;
+    textarea.value = await notes.doc.load();
+
+    textarea.value = 'typed just before signing out';
+    listeners.input();
+    await vm.runInContext('signOut()', sandbox);
+
+    assert.strictEqual(server.content, 'typed just before signing out');
+    assert.strictEqual(confirmed, 0);
+    assert.deepStrictEqual(requests.slice(-2), ['POST /api/storage/notes', 'DELETE /api/auth/session']);
+    assert.deepStrictEqual([...storage.keys()], []);
 });

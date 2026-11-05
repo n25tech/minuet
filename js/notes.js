@@ -27,6 +27,7 @@ class Notes {
 			merge: mergeNotes,
 			isBusy: () => this.timer !== null,
 			current: () => this.timer !== null ? this.textarea.value : this.doc.value,
+			flushPending: () => this.flush(),
 			onRemoteChange: content => this._setText(content),
 		});
 	}
