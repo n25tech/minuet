@@ -9,5 +9,5 @@ export async function onRequestGet(context) {
 export async function onRequestDelete(context) {
     const id = getSessionId(context.request);
     if (id) await context.env.sessions.delete(id);
-    return Response.json({ userId: null }, { headers: { 'Set-Cookie': sessionCookie(context.request, '', 0) } });
+    return Response.json({ userId: null }, { headers: { 'Set-Cookie': sessionCookie('', 0) } });
 }

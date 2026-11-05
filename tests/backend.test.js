@@ -7,6 +7,7 @@ import * as todolistApi from '../functions/api/storage/todolist.js';
 import * as notesApi from '../functions/api/storage/notes.js';
 import * as sessionApi from '../functions/api/auth/session.js';
 import { onRequest as middleware } from '../functions/api/_middleware.js';
+import * as callbackApi from '../functions/api/auth/callback.js';
 import { DatabaseSync } from 'node:sqlite';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -231,9 +232,91 @@ test('Middleware blocks state-changing requests from foreign origins', async () 
 
 test('Middleware allows trusted, same-origin, origin-less and safe requests', async () => {
     assert.strictEqual((await runMiddleware('POST', 'https://minuet.n25tech.com')).reached, true);
-    assert.strictEqual((await runMiddleware('POST', 'http://localhost:3000')).reached, true);
+    // Local development: the app on localhost talking to the API on localhost
+    assert.strictEqual((await runMiddleware('POST', 'http://localhost:3000', 'http://localhost:8788/api/storage/notes')).reached, true);
     // e.g. a Pages preview deployment talking to itself
     assert.strictEqual((await runMiddleware('POST', 'https://abc.minuet.pages.dev', 'https://abc.minuet.pages.dev/api/auth/callback')).reached, true);
     assert.strictEqual((await runMiddleware('POST', null)).reached, true);
     assert.strictEqual((await runMiddleware('GET', 'https://evil.example')).reached, true);
+});
+
+test('Production does not trust localhost origins (any local dev server could otherwise use the session)', async () => {
+    const write = await runMiddleware('POST', 'http://localhost:3000');
+    assert.strictEqual(write.res.status, 403);
+    assert.strictEqual(write.reached, false);
+    // Reads aren't blocked server-side, but the browser must not be allowed to expose the response.
+    const read = await runMiddleware('GET', 'http://localhost:3000');
+    assert.notStrictEqual(read.res.headers.get('Access-Control-Allow-Origin'), 'http://localhost:3000');
+    const own = await runMiddleware('GET', 'https://minuet.n25tech.com');
+    assert.strictEqual(own.res.headers.get('Access-Control-Allow-Origin'), 'https://minuet.n25tech.com');
+});
+
+// --- Google sign-in callback ---------------------------------------------------------------
+
+const CLIENT_ID = 'test-client.apps.googleusercontent.com';
+
+// Stub Google's tokeninfo endpoint: the "token" string is a JSON blob of the claims to return.
+async function signIn(env, claims) {
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = async (url) => {
+        assert.ok(String(url).startsWith('https://oauth2.googleapis.com/tokeninfo?id_token='));
+        const token = decodeURIComponent(String(url).split('id_token=')[1]);
+        return Response.json({ aud: CLIENT_ID, email_verified: 'true', ...JSON.parse(token) });
+    };
+    try {
+        const body = new URLSearchParams({ credential: JSON.stringify(claims) });
+        const request = new Request('https://minuet.n25tech.com/api/auth/callback', { method: 'POST', body });
+        const res = await callbackApi.onRequestPost({ env: { ...env, GOOGLE_CLIENT_ID: CLIENT_ID }, request });
+        return { res, data: res.ok ? await res.json() : await res.text() };
+    } finally {
+        globalThis.fetch = realFetch;
+    }
+}
+
+function usersRows(env) {
+    return env.db.sqlite.prepare('SELECT user_id, google_sub, email, name FROM users ORDER BY created_at, user_id').all().map(r => ({ ...r }));
+}
+
+test('Sign-in sets a SameSite=Lax session cookie', async () => {
+    const { env } = await makeEnv(null);
+    const { res } = await signIn(env, { sub: 'g-1', email: 'a@example.com', name: 'A' });
+    assert.strictEqual(res.status, 201);
+    const cookie = res.headers.get('Set-Cookie');
+    assert.match(cookie, /SameSite=Lax/);
+    assert.match(cookie, /HttpOnly/);
+    assert.match(cookie, /Secure/);
+});
+
+test('Accounts are matched by Google sub: an email change keeps the same account', async () => {
+    const { env } = await makeEnv(null);
+    const first = await signIn(env, { sub: 'g-1', email: 'old@example.com', name: 'A' });
+    const second = await signIn(env, { sub: 'g-1', email: 'new@example.com', name: 'A' });
+    assert.strictEqual(second.res.status, 200);
+    assert.strictEqual(second.data.userId, first.data.userId);
+    assert.deepStrictEqual(usersRows(env).map(r => r.email), ['new@example.com']);
+});
+
+test('A different Google account with a reassigned email cannot take over the old account', async () => {
+    const { env } = await makeEnv(null);
+    const owner = await signIn(env, { sub: 'g-owner', email: 'shared@example.com', name: 'Owner' });
+    const intruder = await signIn(env, { sub: 'g-new', email: 'shared@example.com', name: 'New' });
+    assert.strictEqual(intruder.res.status, 409);
+    assert.strictEqual(intruder.res.headers.get('Set-Cookie'), null);
+    const rows = usersRows(env);
+    assert.strictEqual(rows.length, 1);
+    assert.strictEqual(rows[0].user_id, owner.data.userId);
+    assert.strictEqual(rows[0].google_sub, 'g-owner');
+});
+
+test('Sign-in rejects tokens for another app or with an unverified email', async () => {
+    const { env } = await makeEnv(null);
+    assert.strictEqual((await signIn(env, { sub: 'g-1', email: 'a@example.com', aud: 'other-app' })).res.status, 401);
+    assert.strictEqual((await signIn(env, { sub: 'g-1', email: 'a@example.com', email_verified: 'false' })).res.status, 401);
+    assert.deepStrictEqual(usersRows(env), []);
+});
+
+test('Todo list loads empty for a user with no saved state', async () => {
+    const { env, cookie } = await makeEnv('user-1');
+    const res = await todolistApi.onRequestGet(ctx(env, cookie));
+    assert.deepStrictEqual(await res.json(), { list: [], version: 0 });
 });

@@ -162,12 +162,6 @@ document.addEventListener("click", (event) => {
     if (!wrapper.contains(event.target)) menu.hidden = true;
 });
 
-// Sign-in page: render the button into the page and show the One Tap prompt.
-function googleSignIn() {
-    renderGoogleButton(document.querySelector(".g_id_signin"));
-    google.accounts.id.prompt();
-}
-
 // The Google Identity library calls this once it has finished loading.
 window.onGoogleLibraryLoad = () => {
     initGoogleAuth();
