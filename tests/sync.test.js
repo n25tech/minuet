@@ -162,6 +162,32 @@ test('A save that fails after an earlier one succeeded does not invent a conflic
     assert.deepStrictEqual(server, { content: 'AB', version: 3 });
 });
 
+test('A failed save after a conflict merge keeps the other device\'s edit on reload', async () => {
+    const storage = new Map();
+    const server = { content: 'start', version: 1 };
+    const env = loadNotes({
+        storage, server,
+        // Post 1 conflicts, post 2 (the merged retry) succeeds, post 3 (the queued save) is lost.
+        postStatus: n => n === 3 ? 'network' : null,
+        onPost: (_, n) => {
+            if (n !== 1) return;
+            Object.assign(server, { content: 'X from other device', version: 2 });
+            env.type('AB');
+            env.notes.flush();
+        },
+    });
+    env.textarea.value = await env.notes.doc.load();
+    env.type('A');
+    await env.notes.flush();
+    assert.strictEqual(await env.notes.doc.saving, false);
+
+    const online = loadNotes({ storage, server });
+    await online.notes.doc.load();
+    await online.notes.doc.saving;
+    assert.ok(server.content.includes('X from other device'), server.content);
+    assert.ok(server.content.includes('AB'), server.content);
+});
+
 test('Typing while a refresh uploads an unsynced edit is kept', async () => {
     const server = { content: 'start', version: 1 };
     let offline = true;

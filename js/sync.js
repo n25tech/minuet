@@ -67,9 +67,9 @@ class SyncedDoc {
 		}
 	}
 
-	_saveUnsynced(value = this.value) {
+	_saveUnsynced() {
 		try {
-			localStorage.setItem(this.unsyncedKey, JSON.stringify({ value, base: this.base }));
+			localStorage.setItem(this.unsyncedKey, JSON.stringify({ value: this.value, base: this.base }));
 		} catch (error) {
 			console.error(error);
 		}
@@ -163,8 +163,7 @@ class SyncedDoc {
 					if (this.pending === 1) {
 						localStorage.removeItem(this.unsyncedKey);
 					} else {
-						const unsynced = this._loadUnsynced();
-						if (unsynced) this._saveUnsynced(unsynced.value);
+						if (this._loadUnsynced()) this._saveUnsynced();
 					}
 					return true;
 				},
