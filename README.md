@@ -8,13 +8,20 @@ A pomodoro app written in vanilla js.
 * Pomodoro Timer
 * Todo list
 * Distraction diary
+* Google sign-in to sync the todo list and notes across devices
 
 ### Future Ideas:
-* Google/SSO signin to sync across devices
 * White noise machine
 
 ### Run Locally:
 `./cmd.sh`
+
+### Database:
+
+The D1 schema lives in `migrations/`. Apply it with:
+
+* `npm run db:migrate` - local database
+* `npm run db:migrate:remote` - production database (run before deploying schema changes)
 
 ### Deployment:
 

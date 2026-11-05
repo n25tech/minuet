@@ -1,3 +1,14 @@
+export function sessionCookie(request, sessionId, maxAge) {
+    return `minuet_session=${sessionId}; Path=/; HttpOnly; Secure; SameSite=None; Max-Age=${maxAge}`;
+}
+
+export function getSessionId(request) {
+    const name = "minuet_session";
+    const cookieHeader = request.headers.get("Cookie");
+    if (!cookieHeader) return null;
+    const matches = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
+    return matches ? decodeURIComponent(matches[1]) : null;
+}
 
 export async function createSession(context, userId) {
     const ttl = 604800; // 7 days in seconds
@@ -14,12 +25,10 @@ export async function createSession(context, userId) {
 }
 
 export async function getUserIdFromSession(context) {
-    const name = "minuet_session";
-    const {request} = context;
-    const cookieHeader = request.headers.get("Cookie");
-    console.log(cookieHeader);
-    const matches = cookieHeader.match(new RegExp(`(?:^|;\\s*)${name}=([^;]*)`));
-    const sessionId = matches ? decodeURIComponent(matches[1]) : null;   
+    const sessionId = getSessionId(context.request);
+    if (!sessionId) {
+        return null;
+    }
     const sessionData = await context.env.sessions.get(sessionId);
     if (!sessionData) {
         return null;

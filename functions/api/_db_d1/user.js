@@ -4,9 +4,7 @@ export async function getUserIdByEmail(db, email) {
     const { results } = await db.prepare(
         "SELECT * FROM users WHERE email = ?"
     ).bind(email).all();
-    console.log(`getUserIdByEmail results: ${JSON.stringify(results)}`);
     if (results.length === 0) {
-        console.log(`No user found with email: ${email}`);
         return null;
     }
     return results[0].user_id;
