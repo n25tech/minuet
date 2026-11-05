@@ -67,18 +67,18 @@ class SyncedDoc {
 		}
 	}
 
-	_saveUnsynced() {
+	_saveUnsynced(value = this.value) {
 		try {
-			localStorage.setItem(this.unsyncedKey, JSON.stringify({ value: this.value, base: this.base }));
+			localStorage.setItem(this.unsyncedKey, JSON.stringify({ value, base: this.base }));
 		} catch (error) {
 			console.error(error);
 		}
 	}
 
-	/* Merge an earlier failed save into the server value just fetched, and upload it. */
-	async _applyUnsynced() {
+	/* Merge an earlier failed save into the server value just fetched, and start uploading it. */
+	_applyUnsynced() {
 		const unsynced = this._loadUnsynced();
-		if (unsynced) await this.save(this.merge(unsynced.base, unsynced.value, this.value));
+		if (unsynced) this.save(this.merge(unsynced.base, unsynced.value, this.value));
 	}
 
 	/* The session ended on the server: show the user as signed out. */
@@ -129,13 +129,13 @@ class SyncedDoc {
 			this.version = data.version || 0;
 			this.value = data[this.field] ?? this.empty();
 			this.base = structuredClone(this.value);
-			await this._applyUnsynced();
+			this._applyUnsynced();
 
 			// First sign-in on this device with nothing on the server yet:
 			// carry over whatever was written while signed out.
 			const local = this._loadLocal();
 			if (this.version === 0 && this.isEmpty(this.value) && !this.isEmpty(local)) {
-				if (await this.save(local)) localStorage.removeItem(this.localKey);
+				this.save(local).then(saved => { if (saved) localStorage.removeItem(this.localKey); });
 			}
 		} catch (error) {
 			console.error(error);
@@ -160,7 +160,12 @@ class SyncedDoc {
 			.then(() => this._saveRemote())
 			.then(
 				() => {
-					if (this.pending === 1) localStorage.removeItem(this.unsyncedKey);
+					if (this.pending === 1) {
+						localStorage.removeItem(this.unsyncedKey);
+					} else {
+						const unsynced = this._loadUnsynced();
+						if (unsynced) this._saveUnsynced(unsynced.value);
+					}
 					return true;
 				},
 				(error) => {
@@ -206,7 +211,7 @@ class SyncedDoc {
 			this.version = data.version;
 			this.value = data[this.field] ?? this.empty();
 			this.base = structuredClone(this.value);
-			await this._applyUnsynced();
+			this._applyUnsynced();
 			if (this.onRemoteChange) this.onRemoteChange(structuredClone(this.value));
 		} catch (error) {
 			console.error(error);

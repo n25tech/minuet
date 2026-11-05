@@ -53,7 +53,22 @@ async function handleCredentialResponse(response) {
     }
 }
 
+// Every key holding this user's edits that the server hasn't confirmed yet (see sync.js).
+function unsyncedKeys(user) {
+    const suffix = `:unsynced:${user.userId}`;
+    const keys = [];
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.endsWith(suffix)) keys.push(key);
+    }
+    return keys;
+}
+
 async function signOut() {
+    const user = window.minuetAuth.user;
+    const unsynced = user ? unsyncedKeys(user) : [];
+    if (unsynced.length && !confirm("Some edits haven't synced to your account and will be lost on this device. Sign out anyway?")) return;
+    unsynced.forEach(key => localStorage.removeItem(key));
     try {
         await fetch(`${originDomain}/api/auth/session`, { method: "DELETE", credentials: "include" });
     } catch (error) {

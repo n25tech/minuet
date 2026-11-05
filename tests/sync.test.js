@@ -44,8 +44,9 @@ function loadNotes({ local, server, onPost, storage = new Map(), postStatus }) {
             const body = JSON.parse(options.body);
             posts.push(body);
             onPost?.(body, posts.length);
-            if (postStatus === 'network') throw new TypeError('Failed to fetch');
-            if (postStatus) return new Response('{}', { status: postStatus });
+            const status = typeof postStatus === 'function' ? postStatus(posts.length) : postStatus;
+            if (status === 'network') throw new TypeError('Failed to fetch');
+            if (status) return new Response('{}', { status });
             if (body.version !== server.version) return new Response(JSON.stringify(server), { status: 409 });
             server.content = body.content;
             server.version++;
@@ -66,6 +67,7 @@ test('First sign-in upload that hits a conflict keeps the anonymous notes', asyn
         onPost: (_, n) => { if (n === 1) Object.assign(env.server, { content: 'other device', version: 1 }); },
     });
     await env.notes.doc.load();
+    await env.notes.doc.saving;
     assert.ok(env.server.content.includes('written while signed out'), env.server.content);
     assert.ok(env.server.content.includes('other device'), env.server.content);
     assert.ok(env.server.content.includes(MARKER));
@@ -76,6 +78,7 @@ test('Anonymous notes stay in localStorage when the upload fails', async () => {
     const env = loadNotes({ local: 'keep me', server: { content: '', version: 0 } });
     env.server.version = Number.NaN; // every save is rejected as stale
     await env.notes.doc.load();
+    await env.notes.doc.saving;
     assert.strictEqual(env.storage.get('notes'), JSON.stringify('keep me'));
 });
 
@@ -110,6 +113,7 @@ test('A signed-in edit that fails to reach the server is uploaded after a reload
     Object.assign(server, { content: 'other device', version: 2 });
     const online = loadNotes({ storage, server });
     const loaded = await online.notes.doc.load();
+    await online.notes.doc.saving;
     assert.ok(server.content.includes('edited offline'), server.content);
     assert.ok(server.content.includes('other device'), server.content);
     assert.strictEqual(loaded, server.content);
@@ -133,5 +137,101 @@ test('An expired session signs the user out and keeps the edit for the next sign
 
     const again = loadNotes({ storage, server });
     assert.strictEqual(await again.notes.doc.load(), 'typed after expiry');
+    await again.notes.doc.saving;
     assert.deepStrictEqual(server, { content: 'typed after expiry', version: 2 });
+});
+
+test('A save that fails after an earlier one succeeded does not invent a conflict', async () => {
+    const storage = new Map();
+    const server = { content: 'start', version: 1 };
+    const env = loadNotes({
+        storage, server,
+        // The first save goes through; the network drops before the second.
+        postStatus: n => n === 1 ? null : 'network',
+        onPost: (_, n) => { if (n === 1) { env.type('AB'); env.notes.flush(); } },
+    });
+    env.textarea.value = await env.notes.doc.load();
+    env.type('A');
+    assert.strictEqual(await env.notes.flush(), true);
+    assert.strictEqual(await env.notes.doc.saving, false);
+
+    // Only this device ever edited, so the reload must upload exactly 'AB'.
+    const online = loadNotes({ storage, server });
+    await online.notes.doc.load();
+    await online.notes.doc.saving;
+    assert.deepStrictEqual(server, { content: 'AB', version: 3 });
+});
+
+test('Typing while a refresh uploads an unsynced edit is kept', async () => {
+    const server = { content: 'start', version: 1 };
+    let offline = true;
+    let typed = false;
+    const env = loadNotes({
+        server,
+        postStatus: () => offline ? 'network' : null,
+        onPost: () => {
+            if (offline || typed) return;
+            typed = true;
+            env.type(env.textarea.value + ' and more');
+        },
+    });
+    env.textarea.value = await env.notes.doc.load();
+    env.type('edited offline');
+    assert.strictEqual(await env.notes.flush(), false);
+
+    offline = false;
+    await env.notes.doc.refresh();
+    await env.notes.doc.saving;
+    assert.strictEqual(env.textarea.value, 'edited offline and more');
+    await env.notes.flush();
+    assert.strictEqual(server.content, 'edited offline and more');
+});
+
+// Runs the real signin.js with a fake DOM; confirm() answers with `answer`.
+function loadSignin({ storage, user, answer }) {
+    const requests = [];
+    const sandbox = {
+        console, CustomEvent,
+        window: { APP_CONFIG: { BACKEND_API_URL: '' } },
+        document: { getElementById: () => null, addEventListener() {}, dispatchEvent() {} },
+        localStorage: {
+            get length() { return storage.size; },
+            key: i => [...storage.keys()][i] ?? null,
+            getItem: key => storage.has(key) ? storage.get(key) : null,
+            removeItem: key => storage.delete(key),
+        },
+        confirm: () => answer,
+        fetch: async (url, options = {}) => {
+            requests.push(options.method || 'GET');
+            return new Response(JSON.stringify(user));
+        },
+    };
+    vm.createContext(sandbox);
+    vm.runInContext(readFileSync(new URL('../js/signin.js', import.meta.url), 'utf8'), sandbox);
+    return { auth: sandbox.window.minuetAuth, requests, signOut: () => vm.runInContext('signOut()', sandbox) };
+}
+
+test('Sign out with unsynced edits asks first, then deletes only that user\'s copies', async () => {
+    const unsynced = () => new Map([
+        ['notes:unsynced:user-1', '{}'],
+        ['todolist:unsynced:user-1', '{}'],
+        ['notes:unsynced:user-2', '{}'],
+        ['notes', '"anonymous"'],
+    ]);
+    const user = { userId: 'user-1', email: 'me@example.com' };
+
+    const storage = unsynced();
+    const cancelled = loadSignin({ storage, user, answer: false });
+    await cancelled.auth.ready;
+    await cancelled.signOut();
+    assert.strictEqual(cancelled.auth.user.userId, 'user-1');
+    assert.deepStrictEqual(cancelled.requests, ['GET']);
+    assert.strictEqual(storage.size, 4);
+
+    const confirmed = loadSignin({ storage, user, answer: true });
+    await confirmed.auth.ready;
+    await confirmed.signOut();
+    assert.strictEqual(confirmed.auth.user, null);
+    assert.deepStrictEqual(confirmed.requests, ['GET', 'DELETE']);
+    assert.deepStrictEqual([...storage.keys()].sort(), ['notes', 'notes:unsynced:user-2']);
 });
