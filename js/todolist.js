@@ -1,5 +1,8 @@
 /*
- * Creates a To-do list that consists of an array of objects, each object has the format: {"text": "", "complete": false, "order": 1, "id": ""}
+ * Creates a To-do list that consists of an array of objects, each object has the format:
+ *   {"text": "", "complete": false, "order": 1, "id": "", "due": "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" (optional), "calendar": true (optional)}
+ * An item with a due date and calendar: true is shown on the Calendar (see calendar.js), which reads
+ * this list directly - the to-do is the single source of truth, nothing is copied.
  * Synced to the backend when signed in (see sync.js), stored in localStorage otherwise.
  */
 
@@ -67,19 +70,30 @@ class TodoList {
 
 	async addItem() {
 		const input = document.getElementById(this.uiItemInput);
+		const dateInput = document.getElementById("new-item-date");
+		const timeInput = document.getElementById("new-item-time");
+		const calendarInput = document.getElementById("new-item-calendar");
 		const newItemText = input.value.trim();
-		if (newItemText) {
-			this.list.push(this._idNewItem(newItemText));
-			input.value = "";
-			this.displayList();
-			await this.saveState();
+		if (!newItemText) return;
+		const item = this._idNewItem(newItemText);
+		// A time on its own means today.
+		const date = dateInput.value || (timeInput.value ? toYMD(new Date()) : "");
+		if (date) {
+			item.due = timeInput.value ? `${date}T${timeInput.value}` : date;
+			if (calendarInput.checked) item.calendar = true;
 		}
+		this.list.push(item);
+		input.value = "";
+		dateInput.value = "";
+		timeInput.value = "";
+		this.displayList();
+		await this.saveState();
 	}
 
-	async markComplete(id) {
+	async toggleComplete(id) {
 		const item = this.list.find(item => item.id === id);
 		if (item) {
-			item.complete = true;
+			item.complete = !item.complete;
 			this.displayList();
 			await this.saveState();
 		}
@@ -91,23 +105,42 @@ class TodoList {
 		await this.saveState();
 	}
 
+	_dueLabel(item) {
+		const due = parseLocal(item.due);
+		const options = { weekday: "short", day: "numeric", month: "short" };
+		if (due.getFullYear() !== new Date().getFullYear()) options.year = "numeric";
+		if (item.due.includes("T")) Object.assign(options, { hour: "numeric", minute: "2-digit" });
+		return due.toLocaleString([], options);
+	}
+
+	_isOverdue(item) {
+		if (item.complete) return false;
+		const due = parseLocal(item.due);
+		return (item.due.includes("T") ? due : addDays(due, 1)) < new Date();
+	}
+
 	displayList() {
+		// The calendar shows dated to-dos, so it redraws whenever the list changes.
+		document.dispatchEvent(new CustomEvent("minuet:todos"));
 		const containerInstance = document.getElementById(this.uiContainer);
 		if (!containerInstance) return;
 		containerInstance.innerHTML = '';
 		this.list.forEach((item) => {
-			const p = document.createElement("p");
-			p.textContent = item.text;
-			if (item.complete) {
-				p.style.textDecoration = "line-through";
-				containerInstance.appendChild(p);
-			} else {
-				const b = document.createElement("button");
-				p.style.textDecoration = "none";
-				b.textContent = "Mark Complete";
-				b.onclick = () => this.markComplete(item.id);
-				containerInstance.appendChild(p);
-				containerInstance.appendChild(b);
+			const checkbox = el("input", { type: "checkbox", checked: !!item.complete, onchange: () => this.toggleComplete(item.id) });
+			const row = el("label", { class: "todo-item" + (item.complete ? " complete" : "") },
+				checkbox,
+				el("span", { class: "todo-text" }, item.text));
+			containerInstance.appendChild(row);
+			if (item.due) {
+				const label = (item.calendar ? "📅 " : "") + this._dueLabel(item);
+				const due = item.calendar
+					? el("button", {
+						type: "button", class: "todo-due on-calendar", title: "Show on calendar",
+						onclick: () => calendarView.goTo(parseLocal(item.due)),
+					}, label)
+					: el("span", { class: "todo-due" }, label);
+				if (this._isOverdue(item)) due.classList.add("overdue");
+				containerInstance.appendChild(due);
 			}
 		});
 	}
@@ -115,11 +148,21 @@ class TodoList {
 
 const todoList = new TodoList().init();
 
-document.getElementById('new-item-input').addEventListener('keydown', async (event) => {
-	if (event.key === 'Enter') {
+// "Add to calendar" only applies to items with a date; remember the user's last choice.
+(() => {
+	const form = document.getElementById("todo-form");
+	const dateInput = document.getElementById("new-item-date");
+	const timeInput = document.getElementById("new-item-time");
+	const calendarInput = document.getElementById("new-item-calendar");
+	calendarInput.checked = localStorage.getItem("todo_add_to_calendar") !== "false";
+	const syncCalendarOption = () => { calendarInput.disabled = !dateInput.value && !timeInput.value; };
+	dateInput.addEventListener("input", syncCalendarOption);
+	timeInput.addEventListener("input", syncCalendarOption);
+	calendarInput.addEventListener("change", () => localStorage.setItem("todo_add_to_calendar", calendarInput.checked));
+	syncCalendarOption();
+	form.addEventListener("submit", async (event) => {
 		event.preventDefault();
-		if (event.target.value.trim() !== '') {
-			await todoList.addItem();
-		}
-	}
-});
+		await todoList.addItem();
+		syncCalendarOption();
+	});
+})();

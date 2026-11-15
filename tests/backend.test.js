@@ -5,6 +5,8 @@ import { fetchNotesForUser, saveNotesForUser } from '../functions/api/_db_d1/not
 import { createSession, getUserIdFromSession } from '../functions/api/_sessions_kv/sessions.js';
 import * as todolistApi from '../functions/api/storage/todolist.js';
 import * as notesApi from '../functions/api/storage/notes.js';
+import * as notebookApi from '../functions/api/storage/notebook.js';
+import * as calendarApi from '../functions/api/storage/calendar.js';
 import * as sessionApi from '../functions/api/auth/session.js';
 import { onRequest as middleware } from '../functions/api/_middleware.js';
 import * as callbackApi from '../functions/api/auth/callback.js';
@@ -156,9 +158,9 @@ function ctx(env, cookie, method = 'GET', body) {
 
 test('Storage endpoints require a session', async () => {
     const { env } = await makeEnv(null);
-    for (const api of [todolistApi, notesApi]) {
+    for (const api of [todolistApi, notesApi, notebookApi, calendarApi]) {
         assert.strictEqual((await api.onRequestGet(ctx(env))).status, 401);
-        assert.strictEqual((await api.onRequestPost(ctx(env, '', 'POST', { list: [], content: '' }))).status, 401);
+        assert.strictEqual((await api.onRequestPost(ctx(env, '', 'POST', { list: [], content: '', notes: [], events: [] }))).status, 401);
     }
 });
 
@@ -319,4 +321,43 @@ test('Todo list loads empty for a user with no saved state', async () => {
     const { env, cookie } = await makeEnv('user-1');
     const res = await todolistApi.onRequestGet(ctx(env, cookie));
     assert.deepStrictEqual(await res.json(), { list: [], version: 0 });
+});
+
+test('Notebook and calendar lists are stored per user, versioned, and conflict with 409', async () => {
+    const { env, cookie } = await makeEnv('user-1');
+    env.db.addUser('user-2');
+    const { sessionId } = await createSession({ env }, 'user-2');
+    const otherCookie = `minuet_session=${sessionId}`;
+    for (const [api, field] of [[notebookApi, 'notes'], [calendarApi, 'events']]) {
+        assert.deepStrictEqual(await (await api.onRequestGet(ctx(env, cookie))).json(), { [field]: [], version: 0 });
+        const items = [{ id: 'a', title: 'First', updatedAt: 1 }];
+        let res = await api.onRequestPost(ctx(env, cookie, 'POST', { [field]: items, version: 0 }));
+        assert.deepStrictEqual(await res.json(), { version: 1 });
+        assert.deepStrictEqual(await (await api.onRequestGet(ctx(env, cookie))).json(), { [field]: items, version: 1 });
+        // A save based on a stale version is refused and answered with the server's state.
+        res = await api.onRequestPost(ctx(env, cookie, 'POST', { [field]: [], version: 0 }));
+        assert.strictEqual(res.status, 409);
+        assert.deepStrictEqual(await res.json(), { [field]: items, version: 1 });
+        // Another user sees none of it.
+        assert.deepStrictEqual(await (await api.onRequestGet(ctx(env, otherCookie))).json(), { [field]: [], version: 0 });
+    }
+});
+
+test('Notebook and calendar reject lists whose items have no string id', async () => {
+    const { env, cookie } = await makeEnv('user-1');
+    for (const [api, field] of [[notebookApi, 'notes'], [calendarApi, 'events']]) {
+        for (const bad of ['nope', [null], ['text'], [{ title: 'no id' }], [{ id: 7 }]]) {
+            const res = await api.onRequestPost(ctx(env, cookie, 'POST', { [field]: bad, version: 0 }));
+            assert.strictEqual(res.status, 400);
+        }
+    }
+});
+
+test('Notebook accepts documents larger than the default limit, up to its own', async () => {
+    const { env, cookie } = await makeEnv('user-1');
+    const big = [{ id: 'a', text: 'x'.repeat(300 * 1024) }];
+    assert.strictEqual((await notebookApi.onRequestPost(ctx(env, cookie, 'POST', { notes: big, version: 0 }))).status, 200);
+    assert.strictEqual((await calendarApi.onRequestPost(ctx(env, cookie, 'POST', { events: big, version: 0 }))).status, 413);
+    const huge = [{ id: 'a', text: 'x'.repeat(1100 * 1024) }];
+    assert.strictEqual((await notebookApi.onRequestPost(ctx(env, cookie, 'POST', { notes: huge, version: 1 }))).status, 413);
 });

@@ -1,11 +1,22 @@
-/* Apply the variables globally */
+/* Base elements and the small set of controls shared by every feature. */
+* {
+  box-sizing: border-box;
+}
+
 body {
   height: 100vh;
   margin: 0;
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  color: var(--text-main);
+  background-color: var(--bg-app);
 }
 
-.app {
-height: 100vh; 
+[hidden] {
+  display: none !important;
+}
+
+h2, h3, h4 {
+  margin: 0;
 }
 
 .navbar-brand {
@@ -14,44 +25,231 @@ height: 100vh;
   letter-spacing: 0.05em;
 }
 
+button,
+input,
+select,
 textarea {
-  width: 80%;
-  height: 60%;
-}
-
-.card {
-  background-color: var(--bg-card)
+  font: inherit;
+  color: inherit;
 }
 
 button {
-  background-color: var(--accent-color);
-  color: var(--bg-color);
+  cursor: pointer;
+  padding: 0.35rem 0.8rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--bg-card);
 }
 
-@media (max-width: 768px) {
-  body {
-    grid-template-columns: 1fr;
-    grid-template-rows: auto auto auto auto auto;
-    grid-template-areas:
-      "navbar"
-      "center-top"
-      "left"
-      "center-bottom"
-      "right";
-    height: auto;
-    min-height: 100vh;
-  }
+button:hover {
+  background-color: var(--bg-hover);
+}
 
-  .left-column,
-  .right-column,
-  .center-top-column,
-  .center-bottom-column {
-    height: auto;
-    padding: 1rem;
-  }
+button.primary {
+  border-color: var(--btn-primary-strong);
+  background-color: var(--btn-primary-strong);
+  color: var(--btn-text);
+  font-weight: 600;
+}
 
-  textarea {
-    width: 100%;
-    box-sizing: border-box;
-  }
+button.primary:hover {
+  filter: brightness(0.94);
+}
+
+button.danger {
+  color: var(--danger);
+}
+
+button.quiet,
+button.icon-button {
+  border-color: transparent;
+  background-color: transparent;
+}
+
+button.quiet:hover,
+button.icon-button:hover {
+  background-color: var(--bg-hover);
+}
+
+button.icon-button {
+  padding: 0.15rem 0.55rem;
+  font-size: 1.2rem;
+  line-height: 1.2;
+}
+
+input[type="text"],
+input[type="search"],
+input[type="date"],
+input[type="time"],
+select,
+textarea {
+  padding: 0.35rem 0.5rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background-color: var(--bg-card);
+  max-width: 100%;
+}
+
+:focus-visible {
+  outline: 2px solid var(--btn-primary-strong);
+  outline-offset: 1px;
+}
+
+.spacer {
+  flex: 1;
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.9rem;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.field > * {
+  font-size: 0.95rem;
+  color: var(--text-main);
+}
+
+.field-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Two-or-more-way toggle (Home / All notes, Month / Week / Day). */
+.segmented {
+  display: inline-flex;
+}
+
+.segmented button {
+  border-radius: 0;
+  margin-left: -1px;
+}
+
+.segmented button:first-child {
+  border-radius: 6px 0 0 6px;
+  margin-left: 0;
+}
+
+.segmented button:last-child {
+  border-radius: 0 6px 6px 0;
+}
+
+.segmented button[aria-pressed="true"],
+.chip[aria-pressed="true"] {
+  background-color: var(--mint-light);
+  border-color: var(--btn-primary-strong);
+  font-weight: 600;
+  position: relative;
+}
+
+.chip-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.chip {
+  padding: 0.15rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  background-color: var(--bg-card);
+  font-size: 0.85rem;
+}
+
+.chip.small {
+  padding: 0 0.5rem;
+  font-size: 0.75rem;
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Colour pickers */
+.swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+}
+
+.swatch {
+  width: 1.6rem;
+  height: 1.6rem;
+  padding: 0;
+  border-radius: 50%;
+  border: 1px solid var(--border);
+  background-color: var(--swatch, var(--bg-card));
+}
+
+.swatch:hover {
+  background-color: var(--swatch, var(--bg-card));
+  filter: brightness(0.93);
+}
+
+.swatch[aria-pressed="true"] {
+  outline: 2px solid var(--text-main);
+  outline-offset: 2px;
+}
+
+/* Dialogs */
+.dialog {
+  width: min(34rem, calc(100vw - 2rem));
+  max-height: calc(100vh - 2rem);
+  padding: 0;
+  border: none;
+  border-radius: 10px;
+  color: var(--text-main);
+  background-color: var(--bg-card);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.3);
+}
+
+.dialog::backdrop {
+  background-color: rgba(40, 50, 55, 0.45);
+}
+
+.dialog form {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  padding: 1rem 1.25rem;
+}
+
+.dialog .dialog-title {
+  border: none;
+  border-bottom: 1px solid var(--border);
+  border-radius: 0;
+  padding: 0.3rem 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  background: transparent;
+}
+
+.dialog textarea {
+  min-height: 5rem;
+  resize: vertical;
+}
+
+.dialog-actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.form-error {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.9rem;
+}
+
+.empty-state {
+  color: var(--text-muted);
+  padding: 2rem 1rem;
+  text-align: center;
 }

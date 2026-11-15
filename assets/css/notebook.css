@@ -1,0 +1,177 @@
+/* Notes: toolbar, label filter and the card grid. */
+.view-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.notes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+#notes-search {
+  flex: 1;
+  min-width: 10rem;
+  max-width: 28rem;
+}
+
+/* Note colours (cards, the editor and its swatches). */
+[data-color="default"] { --note-bg: #ffffff; }
+[data-color="red"] { --note-bg: #fad2cf; }
+[data-color="orange"] { --note-bg: #fde0c2; }
+[data-color="yellow"] { --note-bg: #fff3b0; }
+[data-color="green"] { --note-bg: #d9f2c4; }
+[data-color="teal"] { --note-bg: #c9efe6; }
+[data-color="blue"] { --note-bg: #d2e3fc; }
+[data-color="purple"] { --note-bg: #e6d5f7; }
+
+#note-colors .swatch {
+  --swatch: var(--note-bg);
+}
+
+/* Masonry-style columns, like Keep. */
+.notes-grid {
+  columns: 16rem;
+  column-gap: 0.9rem;
+}
+
+.notes-grid .empty-state {
+  column-span: all;
+}
+
+.note-card {
+  position: relative;
+  break-inside: avoid;
+  margin-bottom: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--note-bg, #fff);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.note-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.note-card-title {
+  margin: 0 1.8rem 0.4rem 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.note-card-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 10;
+  line-clamp: 10;
+  overflow: hidden;
+}
+
+.note-card-title + .note-card-text:empty {
+  display: none;
+}
+
+.note-card-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.note-card-items li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  overflow-wrap: anywhere;
+}
+
+.note-card-items li.done span,
+.note-item.done input[type="text"] {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.note-card-more {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.note-card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+}
+
+/* Pin: always visible when on, shown on hover/focus when off. */
+.note-pin {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  padding: 0.1rem 0.3rem;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  opacity: 0;
+  filter: grayscale(1);
+}
+
+.note-pin[aria-pressed="true"] {
+  opacity: 1;
+  filter: none;
+}
+
+.note-card:hover .note-pin,
+.note-card:focus-within .note-pin,
+.note-pin:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .note-pin {
+    opacity: 0.55;
+  }
+}
+
+/* Editor */
+.note-dialog {
+  background-color: var(--note-bg, #fff);
+}
+
+.note-dialog input[type="text"],
+.note-dialog textarea {
+  background-color: rgba(255, 255, 255, 0.55);
+}
+
+.note-dialog input.dialog-title {
+  background-color: transparent;
+}
+
+#note-text {
+  min-height: 12rem;
+}
+
+.note-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.note-item {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.note-item input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}

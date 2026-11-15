@@ -9,16 +9,21 @@
   <link rel="icon" type="image/x-icon" href="assets/images/favicon.svg" />
   <title class="timer-display">Minuet: a minimalist productivity app</title>
   <script src="js/config.js?v=2" defer></script>
-  <script src="js/app.js?v=4" defer></script>
+  <script src="js/app.js?v=5" defer></script>
   <script src="js/pomodoro.js?v=2" defer></script>
   <script src="js/signin.js?v=4" defer></script>
-  <script src="js/sync.js?v=3" defer></script>
-  <script src="js/todolist.js?v=3" defer></script>
+  <script src="js/sync.js?v=4" defer></script>
+  <script src="js/calendar-core.js?v=1" defer></script>
+  <script src="js/todolist.js?v=4" defer></script>
   <script src="js/notes.js?v=3" defer></script>
-  <link rel="stylesheet" href="assets/css/styles.css?v=2">
-  <link rel="stylesheet" href="assets/css/light_theme.css?v=2">
+  <script src="js/notebook.js?v=1" defer></script>
+  <script src="js/calendar.js?v=1" defer></script>
+  <link rel="stylesheet" href="assets/css/styles.css?v=3">
+  <link rel="stylesheet" href="assets/css/light_theme.css?v=3">
   <link rel="stylesheet" href="assets/css/dark_theme.css?v=2">
-  <link rel="stylesheet" href="assets/css/main_page.css?v=3">
+  <link rel="stylesheet" href="assets/css/main_page.css?v=4">
+  <link rel="stylesheet" href="assets/css/notebook.css?v=1">
+  <link rel="stylesheet" href="assets/css/calendar.css?v=1">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -45,6 +50,11 @@
         </a>
         <h1 hidden="false">Minuet</h1>
         <span class="navbar-brand">Minuet</span>
+        <div class="nav-tabs">
+          <a href="#/pomodoro" data-nav="pomodoro">Pomodoro</a>
+          <a href="#/notes" data-nav="notes">Notes</a>
+          <a href="#/calendar" data-nav="calendar">Calendar</a>
+        </div>
         <div id="navbar-signin" class="navbar-signin">
           <button id="signin-toggle" class="signin-toggle" onclick="toggleSigninMenu()">Sign In ▾</button>
           <div id="signin-menu" class="signin-menu" hidden>
@@ -56,38 +66,128 @@
               <span class="account-caption">Signed in as</span>
               <strong id="account-name" class="account-name"></strong>
               <span id="account-email" class="account-email"></span>
-              <span class="account-caption">To-dos and notes sync across your devices.</span>
+              <span class="account-caption">To-dos, notes and calendar sync across your devices.</span>
               <button class="signout-button" onclick="signOut()">Sign out</button>
             </div>
           </div>
         </div>
       </nav>
-      <div class="left-column">
-        <div>
-          <h3>To-do list</h3>
-          <div id="todolist-table-container">
+      <main class="views">
+        <!-- POMODORO -->
+        <section class="view view-pomodoro" data-view="pomodoro">
+          <div class="left-column panel">
+            <h3>To-do list</h3>
+            <div id="todolist-table-container" class="todo-items"></div>
+            <form id="todo-form" class="todo-form">
+              <input type="text" id="new-item-input" placeholder="New item" aria-label="New to-do item">
+              <div class="todo-when">
+                <input type="date" id="new-item-date" aria-label="Due date (optional)">
+                <input type="time" id="new-item-time" aria-label="Due time (optional)">
+              </div>
+              <label class="check" title="Show this to-do on the Calendar at its date and time">
+                <input type="checkbox" id="new-item-calendar"> Add to calendar
+              </label>
+              <button type="submit" class="primary">Add</button>
+            </form>
+            <button type="button" class="quiet" onclick="todoList.clearCompleted()">Clear completed</button>
           </div>
-          <input type="text" id="new-item-input" placeholder="New item">
-          <button onclick="(async () => { await todoList.addItem(); })()">Add</button>
-          <div>
-            <br />
-            <button onclick="( async () => {await todoList.clearCompleted(); })()">Clear Completed</button>
+          <div class="center-top-column">
+            <div class="pomodoro-card panel">
+              <h3>Pomodoro</h3>
+              <p id="pomodoro-timer-display">00:00</p>
+              <button id="pomodoro-toggle-button" class="primary" onclick="pomodoroTimer.handleToggleBtn()">Start</button>
+              <button onclick="pomodoroTimer.resetEngine()">Reset</button>
+            </div>
           </div>
-        </div>
-      </div>
-      <div class="center-top-column">
-        <div class="pomodoro-card">
-          <h3>Pomodoro</h3>
-          <p id="pomodoro-timer-display">00:00</p>
-          <button id="pomodoro-toggle-button" onclick="pomodoroTimer.handleToggleBtn()">Start</button>
-          <button onclick="pomodoroTimer.resetEngine()">reset</button>
-        </div>
-      </div>
-      <div class="center-bottom-column"></div>
-      <div class="right-column">
-        <h3>Notes/Distraction Diary</h3>
-        <textarea id="notes-area" placeholder="Write your notes here..."></textarea>
-      </div>
+          <div class="right-column panel">
+            <h3>Distraction diary</h3>
+            <textarea id="notes-area" placeholder="Jot down distractions here and get back to work..."></textarea>
+          </div>
+        </section>
+
+        <!-- NOTES -->
+        <section class="view view-notes" data-view="notes" hidden>
+          <div class="notes-toolbar">
+            <div class="segmented" role="group" aria-label="Which notes to show">
+              <button type="button" data-notes-scope="home">Home</button>
+              <button type="button" data-notes-scope="all">All notes</button>
+            </div>
+            <input type="search" id="notes-search" placeholder="Search all notes" aria-label="Search all notes">
+            <button type="button" id="notes-new-text" class="primary">+ Note</button>
+            <button type="button" id="notes-new-list">+ Checklist</button>
+          </div>
+          <div id="notes-labels" class="chip-row" aria-label="Filter by label"></div>
+          <div id="notes-grid" class="notes-grid"></div>
+        </section>
+
+        <!-- CALENDAR -->
+        <section class="view view-calendar" data-view="calendar" hidden>
+          <div id="calendar-root" class="calendar"></div>
+        </section>
+      </main>
+
+      <dialog id="note-dialog" class="dialog note-dialog">
+        <form id="note-form">
+          <input type="text" id="note-title" class="dialog-title" placeholder="Title" aria-label="Title">
+          <textarea id="note-text" placeholder="Take a note..." aria-label="Note"></textarea>
+          <div id="note-items" class="note-items"></div>
+          <input type="text" id="note-new-item" placeholder="+ List item" aria-label="New list item">
+          <div id="note-colors" class="swatches" role="group" aria-label="Colour"></div>
+          <label class="field">Labels
+            <input type="text" id="note-labels" list="note-label-options" placeholder="e.g. work, ideas (comma separated)">
+            <datalist id="note-label-options"></datalist>
+          </label>
+          <label class="check"><input type="checkbox" id="note-pinned"> Show on Notes home</label>
+          <div class="dialog-actions">
+            <button type="button" id="note-delete" class="danger">Delete</button>
+            <span class="spacer"></span>
+            <button type="submit" class="primary">Done</button>
+          </div>
+        </form>
+      </dialog>
+
+      <dialog id="event-dialog" class="dialog event-dialog">
+        <form id="event-form">
+          <input type="text" id="event-title" class="dialog-title" placeholder="Add title" aria-label="Title">
+          <label class="check"><input type="checkbox" id="event-allday"> All day</label>
+          <div class="field-row">
+            <label class="field">Starts
+              <span><input type="date" id="event-start-date" required> <input type="time" id="event-start-time"></span>
+            </label>
+            <label class="field">Ends
+              <span><input type="date" id="event-end-date" required> <input type="time" id="event-end-time"></span>
+            </label>
+          </div>
+          <div class="field-row">
+            <label class="field">Repeat
+              <select id="event-repeat">
+                <option value="">Does not repeat</option>
+                <option value="daily">Daily</option>
+                <option value="weekly">Weekly</option>
+                <option value="monthly">Monthly</option>
+                <option value="yearly">Yearly</option>
+              </select>
+            </label>
+            <label class="field" id="event-until-field">Until (optional)
+              <input type="date" id="event-until">
+            </label>
+          </div>
+          <div id="event-colors" class="swatches" role="group" aria-label="Colour"></div>
+          <textarea id="event-description" placeholder="Description" aria-label="Description"></textarea>
+          <fieldset id="event-scope" class="scope" hidden>
+            <legend>This is a repeating event. Apply to</legend>
+            <label class="check"><input type="radio" name="event-scope" value="this" checked> This event only</label>
+            <label class="check"><input type="radio" name="event-scope" value="all"> All events in the series</label>
+          </fieldset>
+          <p id="event-error" class="form-error" role="alert" hidden></p>
+          <div class="dialog-actions">
+            <button type="button" id="event-delete" class="danger">Delete</button>
+            <span class="spacer"></span>
+            <button type="button" id="event-cancel">Cancel</button>
+            <button type="submit" class="primary">Save</button>
+          </div>
+        </form>
+      </dialog>
     </div>
   </template>
 </body>
