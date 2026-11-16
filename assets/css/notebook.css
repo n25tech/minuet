@@ -321,7 +321,9 @@ button.icon-button:has(.icon) {
 }
 
 .note-item-when input,
-.note-when input {
+.note-item-when select,
+.note-when input,
+.note-when select {
   padding: 0.1rem 0.35rem;
   font-size: 0.85rem;
   color: var(--text-main);

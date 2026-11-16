@@ -208,6 +208,10 @@ button.todo-due:hover {
   gap: 0.5rem;
 }
 
+.todo-when select {
+  font-size: 0.85rem;
+}
+
 .left-column > .quiet {
   align-self: flex-start;
   padding-left: 0;

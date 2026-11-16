@@ -26,6 +26,21 @@ function el(tag, props = {}, ...children) {
     return node;
 }
 
+/* Brief messages about something the app did on its own (e.g. moving a task). */
+function toast(lines) {
+    if (!lines.length) return;
+    let box = document.getElementById("toasts");
+    if (!box) {
+        box = el("div", { id: "toasts", class: "toasts", role: "status" });
+        document.body.append(box);
+    }
+    const note = el("div", { class: "toast" },
+        el("div", {}, lines.map(line => el("p", {}, line))),
+        el("button", { type: "button", class: "icon-button", "aria-label": "Dismiss", onclick: () => note.remove() }, "×"));
+    box.append(note);
+    setTimeout(() => note.remove(), 12000);
+}
+
 /*
  * The app's three features (Pomodoro, Notes, Calendar) are sections of one page, switched by
  * the URL hash (#/pomodoro, #/notes, #/calendar). All of them stay in the DOM so the timer

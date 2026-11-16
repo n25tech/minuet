@@ -2,7 +2,7 @@
  * Calendar: month, week and day views over the user's events, plus the notes and checklist
  * entries that were added to the calendar (read live from notebook.js, never copied).
  *
- * Events are { id, title, start, end, allDay, repeat, exdates, color, description, updatedAt }
+ * Events are { id, title, start, end, allDay, repeat, exdates, moves, status, color, description, updatedAt }
  * (formats in calendar-core.js), synced to the backend when signed in (see sync.js) and
  * stored in localStorage otherwise.
  */
@@ -93,15 +93,13 @@ class CalendarView {
 			...occurrence,
 			title: occurrence.event.title || "(No title)",
 			allDay: !!occurrence.event.allDay,
+			committed: occurrence.event.status === "committed",
 			color: EVENT_COLORS.includes(occurrence.event.color) ? occurrence.event.color : EVENT_COLORS[0],
 		}));
 		// Notes, and single checklist entries, that were added to the calendar.
-		for (const entry of notebook.calendarEntries()) {
-			const timed = entry.due.includes("T");
-			const due = parseLocal(entry.due);
-			if (Number.isNaN(due.getTime())) continue;
-			const dueEnd = timed ? new Date(due.getTime() + 30 * 60 * 1000) : addDays(due, 1);
-			if (due < end && dueEnd > start) items.push({ entry, title: entry.title, start: due, end: dueEnd, allDay: !timed, key: toYMD(due) });
+		for (const occurrence of expandEvents(notebook.calendarEntries(), start, end)) {
+			const entry = occurrence.event;
+			items.push({ ...occurrence, entry, title: entry.title, allDay: entry.allDay, committed: entry.status === "committed" });
 		}
 		return items.sort((a, b) => (b.allDay - a.allDay) || (a.start - b.start));
 	}
@@ -161,7 +159,7 @@ class CalendarView {
 		const time = solid || !startsToday ? "" : formatTime(occurrence.start) + " ";
 		return el("button", {
 			type: "button",
-			class: "cal-chip" + (solid ? " solid" : ""),
+			class: "cal-chip" + (solid ? " solid" : "") + (occurrence.committed ? " committed" : " suggested"),
 			dataset: { color: occurrence.color },
 			title: occurrence.title,
 			onclick: event => { event.stopPropagation(); this.editEvent(occurrence); },
@@ -178,7 +176,7 @@ class CalendarView {
 		if (!item) {
 			return el("button", {
 				type: "button",
-				class: `${kind} note`,
+				class: `${kind} note` + (occurrence.committed ? " committed" : " suggested"),
 				style,
 				dataset: { color: note.color || "default" },
 				title: `Note: ${occurrence.title}`,
@@ -186,7 +184,7 @@ class CalendarView {
 			}, icon("label", 12), el("span", {}, text));
 		}
 		return el("label", {
-			class: `${kind} todo` + (item.done ? " complete" : ""),
+			class: `${kind} todo` + (item.done ? " complete" : "") + (occurrence.committed ? " committed" : " suggested"),
 			style,
 			title: `${note.title || "Checklist"}: ${item.text}`,
 			onclick: event => event.stopPropagation(),
@@ -287,10 +285,10 @@ class CalendarView {
 		const short = endMin - startMin < 45;
 		return el("button", {
 			type: "button",
-			class: "cal-block" + (short ? " short" : ""),
+			class: "cal-block" + (short ? " short" : "") + (occurrence.committed ? " committed" : " suggested"),
 			style,
 			dataset: { color: occurrence.color },
-			title: `${occurrence.title}\n${range}`,
+			title: `${occurrence.title}\n${range}\n${occurrence.committed ? "Committed" : "Suggested"}`,
 			onclick: event => { event.stopPropagation(); this.editEvent(occurrence); },
 		}, el("strong", {}, occurrence.title), el("span", {}, short ? formatTime(occurrence.start) : range));
 	}
@@ -317,6 +315,7 @@ class CalendarView {
 		this.dialogColor = EVENT_COLORS.includes(event.color) ? event.color : EVENT_COLORS[0];
 		this._field("title").value = event.title || "";
 		this._field("allday").checked = !!event.allDay;
+		this._field("status").value = event.status === "committed" ? "committed" : "";
 		this._field("start-date").value = toYMD(start);
 		this._field("end-date").value = toYMD(end);
 		// An all-day event still gets sensible times in case "All day" is switched off.
@@ -428,6 +427,7 @@ class CalendarView {
 			allDay,
 			start,
 			end,
+			status: this._field("status").value === "committed" ? "committed" : "suggested",
 			repeat: freq ? { freq, until: until || null } : null,
 		};
 	}
@@ -436,20 +436,33 @@ class CalendarView {
 		const form = this._readForm();
 		if (!form) return;
 		const editing = this.editing;
+		// The events this save writes; the last one is the event as edited.
+		let changes;
 		if (!editing) {
-			this.store.upsert({ id: crypto.randomUUID(), ...form, exdates: [] });
+			changes = [{ id: crypto.randomUUID(), ...form, exdates: [] }];
 		} else if (!editing.event.repeat) {
-			this.store.upsert({ ...editing.event, ...form });
+			changes = [{ ...editing.event, ...form }];
 		} else if (this._scope() === "this") {
 			// Take this occurrence out of the series and save the edited copy as its own event.
-			this.store.upsert(
+			changes = [
 				{ ...editing.event, exdates: [...(editing.event.exdates || []), editing.key] },
 				{ id: crypto.randomUUID(), ...form, repeat: null, exdates: [] },
-			);
+			];
 		} else {
-			this.store.upsert({ ...editing.event, ...form, ...this._seriesDates(editing, form) });
+			changes = [{ ...editing.event, ...form, ...this._seriesDates(editing, form) }];
 		}
+		// Only one committed task can hold a time: refuse rather than silently make this one suggested.
+		const edited = changes[changes.length - 1];
+		const others = this.store.items.filter(event => !changes.some(change => change.id === event.id));
+		const clash = resolveSchedule([...others, ...changes, ...notebook.calendarEntries()], [edited.id]).demoted[0];
+		if (clash) {
+			const when = clash.at.toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+			this._showError(`This overlaps the committed task “${taskTitle(clash.blocker)}” on ${when}. Choose another time, or save it as suggested.`);
+			return;
+		}
+		this.store.upsert(...changes);
 		this.dialog.close();
+		settleSchedule([edited.id]);
 	}
 
 	/*
@@ -482,3 +495,45 @@ class CalendarView {
 }
 
 const calendarView = new CalendarView().init();
+
+const taskTitle = task => task.title || "(No title)";
+
+/*
+ * Apply the suggested/committed rules (resolveSchedule in calendar-core.js) after the tasks
+ * `changedIds` were saved: suggested tasks under a committed one are moved or taken off the
+ * calendar, and a committed task that overlaps another committed one becomes suggested.
+ * Says what it did in a toast.
+ */
+function settleSchedule(changedIds) {
+	if (!changedIds.length) return;
+	const store = calendarView.store;
+	const result = resolveSchedule([...store.items, ...notebook.calendarEntries()], changedIds);
+	if (!result.demoted.length && !result.patches.size) return;
+	const demotedIds = new Set(result.demoted.map(({ task }) => task.id));
+
+	const changed = [];
+	const removed = [];
+	for (const event of store.items) {
+		const patch = result.patches.get(event.id);
+		if (patch && patch.removed) removed.push(event.id);
+		else if (patch || demotedIds.has(event.id)) changed.push({ ...event, ...patch, ...(demotedIds.has(event.id) ? { status: "suggested" } : {}) });
+	}
+	if (changed.length) store.upsert(...changed);
+	removed.forEach(id => store.remove(id));
+	notebook.applySchedule(result.patches, demotedIds);
+
+	const time = date => date.toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
+	const lines = result.demoted.map(({ task, blocker }) =>
+		`“${taskTitle(task)}” overlaps the committed task “${taskTitle(blocker)}”, so it was kept as suggested.`);
+	if (result.moved.length > 3) {
+		const gone = result.moved.filter(move => !move.to).length;
+		lines.push(`${result.moved.length - gone} suggested tasks were moved to make room for a committed task` + (gone ? `, and ${gone} taken off the calendar.` : "."));
+	} else {
+		for (const move of result.moved) {
+			lines.push(move.to
+				? `“${taskTitle(move.task)}” was moved to ${time(move.to)} to make room for a committed task.`
+				: `“${taskTitle(move.task)}” was taken off the calendar on ${move.from.toLocaleDateString([], { weekday: "short", day: "numeric", month: "short" })}: no free time left that day.`);
+		}
+	}
+	toast(lines);
+}

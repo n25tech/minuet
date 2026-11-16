@@ -16,6 +16,11 @@ A productivity app written in vanilla js.
   (daily / weekly / monthly / yearly), plus the notes and checklist entries you added to the calendar.
 * Google sign-in to sync everything across devices; signed out, it all lives in localStorage.
 
+Anything on the calendar (an event, a note, a checklist entry) can repeat and is either **suggested** or
+**committed**. Suggested tasks can share a time and can be moved; only one committed task can hold a time.
+When a committed task lands on suggested ones, they move to the next free time that day (or come off the
+calendar if the day is full). All-day tasks never clash.
+
 Dates and times are stored as local wall-clock values with no time zone.
 
 ### Future Ideas:

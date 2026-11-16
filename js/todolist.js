@@ -37,9 +37,14 @@ class TodoList {
 		if (calendarInput.checked && dateInput.value) {
 			item.due = composeDue(dateInput.value, timeInput.value);
 			item.calendar = true;
+			setRepeat(item, document.getElementById("new-item-repeat").value);
+			setStatus(item, document.getElementById("new-item-status").value);
 		}
 		input.value = "";
-		await this._save([...this.list, item]);
+		const saved = this._save([...this.list, item]);
+		// Apply the suggested/committed rules to the new to-do.
+		settleSchedule([`item:${TODO_NOTE_ID}:${item.id}`]);
+		await saved;
 	}
 
 	async toggleComplete(id) {
@@ -67,7 +72,7 @@ class TodoList {
 				el("span", { class: "todo-text" }, item.text));
 			containerInstance.appendChild(row);
 			if (item.due) {
-				const label = (item.calendar ? "📅 " : "") + formatDue(item.due);
+				const label = (item.calendar ? "📅 " : "") + taskSummary(item);
 				const due = item.calendar
 					? el("button", {
 						type: "button", class: "todo-due on-calendar", title: "Show on calendar",
@@ -101,6 +106,8 @@ const todoList = new TodoList().init();
 		calendarInput.checked = false;
 		dateInput.value = "";
 		timeInput.value = "";
+		document.getElementById("new-item-repeat").value = "";
+		document.getElementById("new-item-status").value = "";
 		syncWhen();
 	});
 })();

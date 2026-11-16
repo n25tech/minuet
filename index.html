@@ -9,21 +9,21 @@
   <link rel="icon" type="image/x-icon" href="assets/images/favicon.svg" />
   <title class="timer-display">Minuet: a minimalist productivity app</title>
   <script src="js/config.js?v=2" defer></script>
-  <script src="js/app.js?v=5" defer></script>
+  <script src="js/app.js?v=6" defer></script>
   <script src="js/pomodoro.js?v=2" defer></script>
   <script src="js/signin.js?v=4" defer></script>
   <script src="js/sync.js?v=4" defer></script>
-  <script src="js/calendar-core.js?v=1" defer></script>
-  <script src="js/notebook.js?v=2" defer></script>
-  <script src="js/todolist.js?v=5" defer></script>
+  <script src="js/calendar-core.js?v=2" defer></script>
+  <script src="js/notebook.js?v=3" defer></script>
+  <script src="js/todolist.js?v=6" defer></script>
   <script src="js/diary.js?v=1" defer></script>
-  <script src="js/calendar.js?v=2" defer></script>
-  <link rel="stylesheet" href="assets/css/styles.css?v=3">
+  <script src="js/calendar.js?v=3" defer></script>
+  <link rel="stylesheet" href="assets/css/styles.css?v=4">
   <link rel="stylesheet" href="assets/css/light_theme.css?v=3">
   <link rel="stylesheet" href="assets/css/dark_theme.css?v=2">
-  <link rel="stylesheet" href="assets/css/main_page.css?v=4">
-  <link rel="stylesheet" href="assets/css/notebook.css?v=2">
-  <link rel="stylesheet" href="assets/css/calendar.css?v=2">
+  <link rel="stylesheet" href="assets/css/main_page.css?v=5">
+  <link rel="stylesheet" href="assets/css/notebook.css?v=3">
+  <link rel="stylesheet" href="assets/css/calendar.css?v=3">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -86,6 +86,17 @@
               <div class="todo-when" id="new-item-when" hidden>
                 <input type="date" id="new-item-date" aria-label="Date">
                 <input type="time" id="new-item-time" aria-label="Time (optional)">
+                <select id="new-item-repeat" aria-label="Repeat">
+                  <option value="">Does not repeat</option>
+                  <option value="daily">Repeats daily</option>
+                  <option value="weekly">Repeats weekly</option>
+                  <option value="monthly">Repeats monthly</option>
+                  <option value="yearly">Repeats yearly</option>
+                </select>
+                <select id="new-item-status" aria-label="Suggested or committed">
+                  <option value="">Suggested (can be moved)</option>
+                  <option value="committed">Committed (fixed time)</option>
+                </select>
               </div>
               <button type="submit" class="primary">Add</button>
             </form>
@@ -140,6 +151,17 @@
             <span>On calendar</span>
             <input type="date" id="note-date" aria-label="Date">
             <input type="time" id="note-time" aria-label="Time (optional)">
+            <select id="note-repeat" aria-label="Repeat">
+                  <option value="">Does not repeat</option>
+                  <option value="daily">Repeats daily</option>
+                  <option value="weekly">Repeats weekly</option>
+                  <option value="monthly">Repeats monthly</option>
+                  <option value="yearly">Repeats yearly</option>
+            </select>
+            <select id="note-status" aria-label="Suggested or committed">
+                  <option value="">Suggested (can be moved)</option>
+                  <option value="committed">Committed (fixed time)</option>
+            </select>
             <button type="button" id="note-when-remove" class="icon-button" title="Remove note from calendar" aria-label="Remove note from calendar"></button>
           </div>
           <div id="note-chips" class="note-card-labels"></div>
@@ -168,7 +190,14 @@
       <dialog id="event-dialog" class="dialog event-dialog">
         <form id="event-form">
           <input type="text" id="event-title" class="dialog-title" placeholder="Add title" aria-label="Title">
-          <label class="check"><input type="checkbox" id="event-allday"> All day</label>
+          <div class="field-row">
+            <label class="check"><input type="checkbox" id="event-allday"> All day</label>
+            <span class="spacer"></span>
+            <select id="event-status" aria-label="Suggested or committed">
+              <option value="">Suggested (can be moved)</option>
+              <option value="committed">Committed (fixed time)</option>
+            </select>
+          </div>
           <div class="field-row">
             <label class="field">Starts
               <span><input type="date" id="event-start-date" required> <input type="time" id="event-start-time"></span>

@@ -4,7 +4,9 @@
  *     color, labels: [..], pinned, due?, calendar?, createdAt, updatedAt }
  * A note is plain text or a checklist and can be switched between the two. A whole note, or a
  * single checklist entry, can be added to the calendar: calendar: true with
- * due: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" (see calendar.js, which reads them from here).
+ * due: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM", and optionally repeat: { freq }, status: "committed"
+ * (otherwise suggested), and exdates / moves for single occurrences of a repeating one
+ * (see calendar-core.js; calendar.js reads all of this from here).
  * Synced to the backend when signed in (see sync.js), stored in localStorage otherwise.
  *
  * The Notes home shows only the notes the user pinned to it ("Show on Notes home");
@@ -90,6 +92,54 @@ function formatDue(due) {
 }
 
 const composeDue = (date, time) => date ? (time ? `${date}T${time}` : date) : "";
+
+// Everything that puts a note or an entry on the calendar.
+const TASK_FIELDS = ["calendar", "due", "repeat", "status", "exdates", "moves"];
+const REPEAT_OPTIONS = [["", "Does not repeat"], ["daily", "Repeats daily"], ["weekly", "Repeats weekly"], ["monthly", "Repeats monthly"], ["yearly", "Repeats yearly"]];
+const STATUS_OPTIONS = [["", "Suggested (can be moved)"], ["committed", "Committed (fixed time)"]];
+
+function clearTask(source) {
+	for (const field of TASK_FIELDS) delete source[field];
+}
+
+function setRepeat(source, freq) {
+	if (freq) source.repeat = { freq, until: null };
+	else delete source.repeat;
+	// Skipped and moved occurrences belonged to the old pattern.
+	delete source.exdates;
+	delete source.moves;
+}
+
+function setStatus(source, status) {
+	if (status === "committed") source.status = "committed";
+	else delete source.status;
+}
+
+/* When a note or entry is on the calendar, in a few words: "Tue, Nov 17, 3:00 PM · weekly · committed". */
+function taskSummary(source) {
+	const parts = [formatDue(source.due)];
+	if (source.repeat) parts.push(source.repeat.freq);
+	if (source.status === "committed") parts.push("committed");
+	return parts.join(" · ");
+}
+
+function optionSelect(options, value, label, onchange) {
+	return el("select", { "aria-label": label, onchange: event => onchange(event.target.value) },
+		options.map(([optionValue, text]) => el("option", { value: optionValue, selected: optionValue === value }, text)));
+}
+
+/* A note or entry after the calendar moved it, took it off the calendar, or made it suggested (see settleSchedule). */
+function rescheduled(source, patch, demote) {
+	const next = { ...source };
+	if (demote) delete next.status;
+	if (patch && patch.removed) clearTask(next);
+	else if (patch) {
+		if (patch.start) next.due = patch.start;
+		if (patch.moves) next.moves = patch.moves;
+		if (patch.exdates) next.exdates = patch.exdates;
+	}
+	return next;
+}
 
 function noteMatches(note, query) {
 	const haystack = [note.title, note.text, ...(note.items || []).map(item => item.text), ...(note.labels || [])]
@@ -205,19 +255,50 @@ class Notebook {
 	}
 
 	/*
-	 * Everything the notes put on the calendar: whole notes that were added to it ({ note, title, due })
-	 * and single checklist entries that were ({ note, item, title, due }).
+	 * Everything the notes put on the calendar, as tasks in the calendar's own shape (see calendar-core.js):
+	 * whole notes that were added to it (id "note:<note id>") and single checklist entries that were
+	 * (id "item:<note id>:<entry id>", with `item` set). A timed one takes half an hour.
 	 */
-	calendarEntries() {
-		const entries = [];
-		for (const note of this.store.items) {
-			if (note.calendar && note.due) entries.push({ note, title: noteHeading(note), due: note.due });
+	calendarEntries(notes = this.store.items) {
+		const tasks = [];
+		const add = (id, note, item, title, source) => {
+			const timed = source.due.includes("T");
+			const start = parseLocal(source.due);
+			if (Number.isNaN(start.getTime())) return;
+			tasks.push({
+				id, note, item, title,
+				allDay: !timed,
+				start: source.due,
+				end: timed ? toLocalISO(new Date(start.getTime() + 30 * 60 * 1000)) : source.due,
+				repeat: source.repeat || null,
+				exdates: source.exdates,
+				moves: source.moves,
+				status: source.status,
+			});
+		};
+		for (const note of notes) {
+			if (note.calendar && note.due) add(`note:${note.id}`, note, null, noteHeading(note), note);
 			if (note.type !== "list") continue;
 			for (const item of note.items || []) {
-				if (item.calendar && item.due) entries.push({ note, item, title: item.text, due: item.due });
+				if (item.calendar && item.due) add(`item:${note.id}:${item.id}`, note, item, item.text, item);
 			}
 		}
-		return entries;
+		return tasks;
+	}
+
+	/* Store the outcome of settleSchedule for the tasks that live in notes. */
+	applySchedule(patches, demotedIds) {
+		const touched = id => patches.has(id) || demotedIds.has(id);
+		const changed = [];
+		for (const note of this.store.items) {
+			const noteId = `note:${note.id}`;
+			const itemId = item => `item:${note.id}:${item.id}`;
+			if (!touched(noteId) && !(note.items || []).some(item => touched(itemId(item)))) continue;
+			const next = touched(noteId) ? rescheduled(note, patches.get(noteId), demotedIds.has(noteId)) : { ...note };
+			next.items = (note.items || []).map(item => touched(itemId(item)) ? rescheduled(item, patches.get(itemId(item)), demotedIds.has(itemId(item))) : item);
+			changed.push(next);
+		}
+		if (changed.length) this.store.upsert(...changed);
 	}
 
 	/* ---------- Grid ---------- */
@@ -285,7 +366,7 @@ class Notebook {
 						onchange: () => this.toggleItem(note.id, item.id),
 					}),
 					el("span", {}, item.text,
-						item.calendar && item.due ? el("small", { class: "note-due" }, icon("calendar", 12), formatDue(item.due)) : null)))));
+						item.calendar && item.due ? el("small", { class: "note-due" }, icon("calendar", 12), taskSummary(item)) : null)))));
 			}
 			const more = [];
 			if (open.length > shown.length) more.push(`${open.length - shown.length} more`);
@@ -295,7 +376,7 @@ class Notebook {
 			card.append(el("p", { class: "note-card-text" }, note.text));
 		}
 		const chips = [];
-		if (note.calendar && note.due) chips.push(el("span", { class: "chip small" }, icon("calendar", 12), formatDue(note.due)));
+		if (note.calendar && note.due) chips.push(el("span", { class: "chip small" }, icon("calendar", 12), taskSummary(note)));
 		chips.push(...(note.labels || []).map(label => el("span", { class: "chip small" }, label)));
 		if (chips.length) card.append(el("div", { class: "note-card-labels" }, chips));
 		return card;
@@ -364,6 +445,8 @@ class Notebook {
 		const [date = "", time = ""] = (draft.due || "").split("T");
 		this._part("date").value = date;
 		this._part("time").value = time;
+		this._part("repeat").value = (draft.repeat && draft.repeat.freq) || "";
+		this._part("status").value = draft.status === "committed" ? "committed" : "";
 		this._part("chips").replaceChildren(...draft.labels.map(label => el("span", { class: "chip small" }, label)));
 
 		const fixed = isDefaultNote(draft);   // the Pomodoro page relies on these two keeping their kind
@@ -397,7 +480,7 @@ class Notebook {
 		this._part("items").replaceChildren(
 			...open.map(item => this._itemRow(item)),
 			el("button", { type: "button", class: "note-add-item", onclick: () => this._addItem() }, icon("add"), "List item"),
-			done.length ? el("div", { class: "note-done-divider" }, `${done.length} ticked ${done.length === 1 ? "item" : "items"}`) : null,
+			...(done.length ? [el("div", { class: "note-done-divider" }, `${done.length} ticked ${done.length === 1 ? "item" : "items"}`)] : []),
 			...done.map(item => this._itemRow(item)));
 	}
 
@@ -450,8 +533,7 @@ class Notebook {
 					"aria-label": calendarLabel,
 					onclick: () => {
 						if (item.calendar) {
-							delete item.calendar;
-							delete item.due;
+							clearTask(item);
 						} else {
 							item.calendar = true;
 							item.due = item.due || toYMD(new Date());
@@ -475,7 +557,9 @@ class Notebook {
 			const update = () => { item.due = composeDue(date.value, time.value); };
 			date.addEventListener("input", update);
 			time.addEventListener("input", update);
-			row.append(el("div", { class: "note-item-when" }, icon("calendar", 14), date, time));
+			row.append(el("div", { class: "note-item-when" }, icon("calendar", 14), date, time,
+				optionSelect(REPEAT_OPTIONS, (item.repeat && item.repeat.freq) || "", "Repeat", freq => setRepeat(item, freq)),
+				optionSelect(STATUS_OPTIONS, item.status === "committed" ? "committed" : "", "Suggested or committed", status => setStatus(item, status))));
 		}
 		return row;
 	}
@@ -531,10 +615,12 @@ class Notebook {
 		const updateDue = () => { this.draft.due = composeDue(this._part("date").value, this._part("time").value); };
 		this._part("date").addEventListener("input", updateDue);
 		this._part("time").addEventListener("input", updateDue);
+		this._part("repeat").addEventListener("change", event => setRepeat(this.draft, event.target.value));
+		this._part("status").addEventListener("change", event => setStatus(this.draft, event.target.value));
 		const setCalendar = on => {
 			this.draft.calendar = on;
 			if (on) this.draft.due = this.draft.due || toYMD(new Date());
-			else delete this.draft.due;
+			else clearTask(this.draft);
 			this._renderDraft();
 			if (on) this._part("date").focus();
 		};
@@ -591,19 +677,19 @@ class Notebook {
 			draft.text = "";
 			draft.items = draft.items.filter(item => item.text.trim());
 			// An entry ticked for the calendar but left without a date isn't on it.
-			for (const item of draft.items) if (item.calendar && !item.due) delete item.calendar;
+			for (const item of draft.items) if (item.calendar && !item.due) clearTask(item);
 		} else {
 			draft.items = [];
 		}
-		if (!draft.calendar || !draft.due) {
-			delete draft.calendar;
-			delete draft.due;
-		}
+		if (!draft.calendar || !draft.due) clearTask(draft);
 		if (isBlankNote(draft) && !isDefaultNote(draft)) {
 			if (!this.draftIsNew) this.store.remove(draft.id);
 			return;
 		}
-		if (JSON.stringify(draft) !== this.draftOriginal) this.store.upsert(draft);
+		if (JSON.stringify(draft) === this.draftOriginal) return;
+		this.store.upsert(draft);
+		// Apply the suggested/committed rules to whatever this note has on the calendar.
+		settleSchedule(this.calendarEntries([draft]).map(task => task.id));
 	}
 }
 

@@ -209,6 +209,45 @@
   color: var(--text-muted);
 }
 
+/*
+ * Suggested vs committed. Committed tasks are solid and carry a bar on the left;
+ * suggested ones are lighter with a dashed outline, since they can still move.
+ */
+.cal-block.suggested:not(.note):not(.todo),
+.cal-chip.solid.suggested {
+  background-color: color-mix(in srgb, var(--event) 22%, white);
+  border: 1px dashed var(--event);
+  color: var(--text-main);
+}
+
+.cal-block.suggested:not(.note):not(.todo):hover,
+.cal-chip.solid.suggested:hover {
+  background-color: color-mix(in srgb, var(--event) 32%, white);
+  filter: none;
+}
+
+.cal-chip.committed:not(.solid) {
+  font-weight: 600;
+}
+
+.cal-chip.note.suggested,
+.cal-block.note.suggested {
+  border-style: dashed;
+}
+
+.cal-chip.note.committed,
+.cal-block.note.committed,
+.cal-chip.todo.committed,
+.cal-block.todo.committed {
+  border: 1px solid var(--text-main);
+  border-left-width: 4px;
+  font-weight: 600;
+}
+
+.cal-block.committed:not(.note):not(.todo) {
+  border-left: 4px solid rgba(0, 0, 0, 0.35);
+}
+
 /* ---------- Week / day ---------- */
 .cal-grid {
   flex: 1;
