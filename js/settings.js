@@ -16,6 +16,7 @@ class SettingsView {
 	constructor() {
 		this.api = window.APP_CONFIG.BACKEND_API_URL;
 		this.mcpUrl = `${this.api || location.origin}/api/mcp`;
+		this.shownFor = null;   // user id whose tokens and history are on the page
 	}
 
 	part(id) {
@@ -57,8 +58,26 @@ class SettingsView {
 		box.hidden = !error;
 	}
 
+	/*
+	 * Remove everything account-specific from the page. A freshly created token stays on screen
+	 * until dismissed, so without this it would still be there for whoever signs in next in this tab.
+	 */
+	_clearAccountData() {
+		const newToken = this.part("new-token");
+		newToken.hidden = true;
+		newToken.replaceChildren();
+		this.part("tokens").replaceChildren();
+		this.part("history").replaceChildren();
+		this.part("token-name").value = "";
+		for (const id of ["timezone-error", "token-error", "history-error"]) this._error(id, null);
+	}
+
 	async load() {
-		const signedIn = !!window.minuetAuth.user;
+		const user = window.minuetAuth.user;
+		const signedIn = !!user;
+		const userId = signedIn ? user.userId : null;
+		if (userId !== this.shownFor) this._clearAccountData();   // signed out, or a different account signed in
+		this.shownFor = userId;
 		this.part("signed-out").hidden = signedIn;
 		this.part("signed-in").hidden = !signedIn;
 		if (!signedIn) return;
@@ -140,10 +159,12 @@ class SettingsView {
 	async createToken() {
 		const name = this.part("token-name").value.trim();
 		const level = document.querySelector('input[name="settings-level"]:checked').value;
+		const requestedFor = this.shownFor;
 		try {
 			const created = await this.request("/api/tokens", {
 				body: { name, scopes: ACCESS_LEVELS[level].scopes, expiresInDays: Number(this.part("token-expiry").value) },
 			});
+			if (this.shownFor !== requestedFor) return;   // the account changed while the request was in flight
 			this.part("token-name").value = "";
 			this._showNewToken(created);
 			this.loadTokens();
