@@ -1,6 +1,6 @@
 /*
  * Calendar: month, week and day views over the user's events, plus the to-dos that were
- * added with a date and "Add to calendar" (read live from todolist.js, never copied).
+ * added with a date and "Add to calendar" (read live from the to-do list note via todolist.js, never copied).
  *
  * Events are { id, title, start, end, allDay, repeat, exdates, color, description, updatedAt }
  * (formats in calendar-core.js), synced to the backend when signed in (see sync.js) and
@@ -36,7 +36,7 @@ class CalendarView {
 	init() {
 		this._bindDialog();
 		this.store.init();
-		document.addEventListener("minuet:todos", () => this.render());
+		document.addEventListener("minuet:notes", () => this.render());
 		document.addEventListener("minuet:view", event => { if (event.detail === "calendar") this.render(); });
 		// Keep "today" and the current-time line fresh.
 		setInterval(() => { if (!this.root.closest("[hidden]") && !this.dialog.open) this.render(); }, 60 * 1000);
@@ -173,11 +173,11 @@ class CalendarView {
 		const { todo } = occurrence;
 		const time = occurrence.allDay ? "" : formatTime(occurrence.start) + " ";
 		return el("label", {
-			class: "cal-chip todo" + (todo.complete ? " complete" : ""),
+			class: "cal-chip todo" + (todo.done ? " complete" : ""),
 			title: `To-do: ${todo.text}`,
 			onclick: event => event.stopPropagation(),
 		},
-			el("input", { type: "checkbox", checked: !!todo.complete, onchange: () => todoList.toggleComplete(todo.id) }),
+			el("input", { type: "checkbox", checked: !!todo.done, onchange: () => todoList.toggleComplete(todo.id) }),
 			el("span", {}, time + todo.text));
 	}
 
@@ -271,12 +271,12 @@ class CalendarView {
 		if (occurrence.todo) {
 			const { todo } = occurrence;
 			return el("label", {
-				class: "cal-block todo" + (todo.complete ? " complete" : ""),
+				class: "cal-block todo" + (todo.done ? " complete" : ""),
 				style,
 				title: `To-do: ${todo.text}`,
 				onclick: event => event.stopPropagation(),
 			},
-				el("input", { type: "checkbox", checked: !!todo.complete, onchange: () => todoList.toggleComplete(todo.id) }),
+				el("input", { type: "checkbox", checked: !!todo.done, onchange: () => todoList.toggleComplete(todo.id) }),
 				el("span", {}, `${todo.text} · ${formatTime(occurrence.start)}`));
 		}
 		// Under 45 minutes there is only room for one line.

@@ -7,6 +7,7 @@ A productivity app written in vanilla js.
 
 * **Pomodoro** (`#/pomodoro`) - pomodoro timer, to-do list and distraction diary.
   A to-do can be given a date and (optionally) a time, and ticked "Add to calendar" to show up on the calendar.
+  The to-do list and the diary are two default notes labelled `pomodoro`, so they can also be opened under Notes.
 * **Notes** (`#/notes`) - Keep-style notes and checklists with colours, labels and search.
   The Notes home only shows the notes you pin to it; "All notes" lists everything.
 * **Calendar** (`#/calendar`) - month, week and day views, all-day and repeating events

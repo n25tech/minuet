@@ -99,3 +99,23 @@ test('mergeById: the newer edit wins when both devices edit, and an edit beats a
         { id: 'editedHere', v: 2, updatedAt: 3 },
     ]);
 });
+
+test('mergeById: a checklist edited on both devices is merged item by item', () => {
+    const todo = items => ({ id: 'pomodoro-todo', title: 'To-do list', items });
+    const base = [todo([{ id: '1', text: 'a', done: false }, { id: '2', text: 'b', done: false }])];
+    const mine = [{ ...todo([{ id: '1', text: 'a', done: true }, { id: '2', text: 'b', done: false }, { id: '3', text: 'mine', done: false }]), updatedAt: 10 }];
+    const theirs = [{ ...todo([{ id: '1', text: 'a', done: false }, { id: '4', text: 'theirs', done: false }]), updatedAt: 20 }];
+    assert.deepStrictEqual(plain(mergeById(base, mine, theirs)), [{
+        id: 'pomodoro-todo', title: 'To-do list', updatedAt: 20,
+        items: [{ id: '1', text: 'a', done: true }, { id: '4', text: 'theirs', done: false }, { id: '3', text: 'mine', done: false }],
+    }]);
+});
+
+test('mergeById: text changed on both devices keeps both versions; changed on one keeps that one', () => {
+    const base = [{ id: 'd', text: 'start', color: 'default' }];
+    const both = mergeById(base, [{ id: 'd', text: 'start mine', color: 'default', updatedAt: 30 }], [{ id: 'd', text: 'start theirs', color: 'default', updatedAt: 20 }]);
+    assert.strictEqual(both[0].text, 'start mine\n\n--- From another device ---\nstart theirs');
+    // The other device only changed the colour (more recently): its colour and our text both survive.
+    const one = mergeById(base, [{ id: 'd', text: 'typed here', color: 'default', updatedAt: 10 }], [{ id: 'd', text: 'start', color: 'red', updatedAt: 20 }]);
+    assert.deepStrictEqual(plain(one), [{ id: 'd', text: 'typed here', color: 'red', updatedAt: 20 }]);
+});

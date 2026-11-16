@@ -3,7 +3,8 @@ import assert from 'node:assert';
 import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 
-const source = file => readFileSync(new URL(`../js/${file}`, import.meta.url), 'utf8');
+// notes.js is a fixture: a textarea bound to a SyncedDoc, the way the distraction diary used to be stored.
+const source = file => readFileSync(new URL(file === 'notes.js' ? './fixtures/synced-textarea.js' : `../js/${file}`, import.meta.url), 'utf8');
 const MARKER = '--- From another device ---';
 
 // Runs the real browser scripts (sync.js + notes.js) in a sandbox with a fake DOM,

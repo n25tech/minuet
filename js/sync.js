@@ -244,7 +244,7 @@ function bindSyncedDoc(doc, onLoaded) {
 /*
  * 3-way merge of two edited lists of { id, updatedAt, ... } items against the last synced list.
  * Items added on either side are kept; an item edited on one side keeps that edit (even if the
- * other side deleted it); an item edited on both sides keeps the more recent edit; an item
+ * other side deleted it); an item edited on both sides is combined by mergeEdited; an item
  * deleted on one side and untouched on the other is dropped.
  */
 function mergeById(base, mine, theirs) {
@@ -259,7 +259,7 @@ function mergeById(base, mine, theirs) {
 		if (local) {
 			if (original && same(local, original)) merged.push(item);
 			else if (original && same(item, original)) merged.push(local);
-			else merged.push((local.updatedAt || 0) > (item.updatedAt || 0) ? local : item);
+			else merged.push(mergeEdited(original, local, item));
 		} else if (!original || !same(item, original)) {
 			merged.push(item); // added on another device, or edited there after being deleted here
 		}
@@ -272,14 +272,40 @@ function mergeById(base, mine, theirs) {
 	return merged;
 }
 
+const TEXT_CONFLICT_MARKER = "\n\n--- From another device ---\n";
+
+/*
+ * One item edited on both devices: the more recent edit wins, except that nothing typed is
+ * dropped - a checklist ("items") is merged entry by entry, and when both sides changed the
+ * "text" the older version is appended to the newer one.
+ */
+function mergeEdited(original, local, remote) {
+	const localIsNewer = (local.updatedAt || 0) > (remote.updatedAt || 0);
+	const [newer, older] = localIsNewer ? [local, remote] : [remote, local];
+	const merged = { ...newer };
+	if (Array.isArray(local.items) && Array.isArray(remote.items)) {
+		merged.items = mergeById((original && original.items) || [], local.items, remote.items);
+	}
+	if (typeof local.text === "string" && typeof remote.text === "string" && local.text !== remote.text) {
+		const baseText = (original && original.text) || "";
+		if (local.text === baseText) merged.text = remote.text;
+		else if (remote.text === baseText) merged.text = local.text;
+		else merged.text = newer.text + TEXT_CONFLICT_MARKER + older.text;
+	}
+	return merged;
+}
+
 /*
  * A synced list of { id, updatedAt, ... } items (notes, calendar events).
- * onChange runs whenever the list changes, locally or from another device.
+ * onChange runs whenever the list changes, locally or from another device; onLoad runs after
+ * each (re)load, i.e. at startup and on sign-in/out. isBusy and flushPending are passed to
+ * SyncedDoc for edits that haven't reached the list yet.
  */
 class SyncedList {
-	constructor({ endpoint, field, localKey, onChange }) {
+	constructor({ endpoint, field, localKey, onChange, onLoad, isBusy, flushPending }) {
 		this.items = [];
 		this.onChange = onChange;
+		this.onLoad = onLoad;
 		this.doc = new SyncedDoc({
 			endpoint,
 			field,
@@ -289,11 +315,16 @@ class SyncedList {
 			merge: mergeById,
 			normalize: value => Array.isArray(value) ? value : [],
 			onRemoteChange: list => this._set(list),
+			isBusy,
+			flushPending,
 		});
 	}
 
 	init() {
-		bindSyncedDoc(this.doc, list => this._set(list));
+		bindSyncedDoc(this.doc, list => {
+			this._set(list);
+			if (this.onLoad) this.onLoad();
+		});
 		return this;
 	}
 

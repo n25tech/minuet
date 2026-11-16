@@ -7,6 +7,54 @@
  * "All notes" lists everything, and searching always looks through every note.
  */
 
+/*
+ * The Pomodoro page's to-do list and distraction diary are two default notes, labelled
+ * "pomodoro" (see todolist.js and diary.js). They have fixed ids so every device agrees on
+ * which notes they are, and they can be edited like any other note but not deleted.
+ */
+const POMODORO_LABEL = "pomodoro";
+const TODO_NOTE_ID = "pomodoro-todo";
+const DIARY_NOTE_ID = "pomodoro-diary";
+const isDefaultNote = note => note.id === TODO_NOTE_ID || note.id === DIARY_NOTE_ID;
+
+function newDefaultNote(id) {
+	const note = { id, title: "", text: "", items: [], color: "default", labels: [POMODORO_LABEL], pinned: false, createdAt: Date.now() };
+	return id === TODO_NOTE_ID ? { ...note, type: "list", title: "To-do list" } : { ...note, type: "text", title: "Distraction diary" };
+}
+
+/*
+ * Before the to-do list and diary became notes they were stored on their own
+ * (/api/storage/todolist and /api/storage/notes, or localStorage when signed out).
+ * Reads whatever is there so it can be carried into the default notes; throws when
+ * signed in and the server can't be reached, so the import is retried later.
+ */
+async function loadLegacyPomodoroData() {
+	const local = key => {
+		try { return JSON.parse(localStorage.getItem(key)); } catch { return null; }
+	};
+	const remote = async (name, field) => {
+		const response = await fetch(`${window.APP_CONFIG.BACKEND_API_URL}/api/storage/${name}`, { credentials: "include" });
+		if (!response.ok) throw new Error(`GET /api/storage/${name} failed: ${response.status}`);
+		return (await response.json())[field];
+	};
+	let list = local("todolist");
+	if (list && !Array.isArray(list)) list = list.list;   // oldest format: { list, completedList }
+	let text = local("notes");
+	if (window.minuetAuth.user) {
+		const [remoteList, remoteText] = await Promise.all([remote("todolist", "list"), remote("notes", "content")]);
+		if (Array.isArray(remoteList) && remoteList.length) list = remoteList;
+		if (remoteText) text = remoteText;
+	}
+	const items = (Array.isArray(list) ? list : []).filter(item => item && typeof item.text === "string").map(item => ({
+		id: String(item.id || crypto.randomUUID()),
+		text: item.text,
+		done: !!item.complete,
+		...(item.due ? { due: item.due } : {}),
+		...(item.calendar ? { calendar: true } : {}),
+	}));
+	return { items, text: typeof text === "string" ? text : "" };
+}
+
 const NOTE_COLORS = ["default", "red", "orange", "yellow", "green", "teal", "blue", "purple"];
 
 function noteMatches(note, query) {
@@ -37,12 +85,39 @@ class Notebook {
 		this.scope = localStorage.getItem("notes_scope") === "all" ? "all" : "home";
 		this.label = null;   // label filter, or null for every label
 		this.draft = null;   // the note open in the editor
+		this.unsaved = [];   // { isBusy, flush } for editors holding text not yet in the store (the diary box)
 		this.store = new SyncedList({
 			endpoint: "/api/storage/notebook",
 			field: "notes",
 			localKey: "notebook",
 			onChange: () => this.render(),
+			onLoad: () => this._ensureDefaultNotes(),
+			isBusy: () => this.unsaved.some(editor => editor.isBusy()),
+			flushPending: () => this.unsaved.forEach(editor => editor.flush()),
 		});
+	}
+
+	/* The stored default note, or a fresh one if it hasn't been created yet. */
+	defaultNote(id) {
+		return this.store.get(id) || newDefaultNote(id);
+	}
+
+	/* Create the default notes if this account/device doesn't have them yet, bringing over the old to-do list and diary. */
+	async _ensureDefaultNotes() {
+		const run = this.ensureRun = (this.ensureRun || 0) + 1;
+		const missing = () => [TODO_NOTE_ID, DIARY_NOTE_ID].filter(id => !this.store.get(id));
+		// Signed in but the notebook couldn't be loaded: don't create defaults over notes we can't see.
+		if (!missing().length || this.store.doc.remote !== this.store.doc.signedIn) return;
+		let legacy;
+		try {
+			legacy = await loadLegacyPomodoroData();
+		} catch (error) {
+			console.error(error);
+			return;
+		}
+		if (run !== this.ensureRun) return;   // signed in or out meanwhile; that load runs its own check
+		const created = missing().map(id => ({ ...newDefaultNote(id), ...(id === TODO_NOTE_ID ? { items: legacy.items } : { text: legacy.text }) }));
+		if (created.length) this.store.upsert(...created);
 	}
 
 	init() {
@@ -84,6 +159,8 @@ class Notebook {
 	/* ---------- Grid ---------- */
 
 	render() {
+		// The Pomodoro page's to-do list and diary, and the calendar's to-dos, are drawn from the notes.
+		document.dispatchEvent(new CustomEvent("minuet:notes"));
 		if (!this.grid) return;
 		const searching = !!this.search.value.trim();
 		document.querySelectorAll("[data-notes-scope]").forEach(button => {
@@ -188,7 +265,7 @@ class Notebook {
 		document.getElementById("note-labels").value = this.draft.labels.join(", ");
 		document.getElementById("note-label-options").replaceChildren(...this.labels.map(label => el("option", { value: label })));
 		document.getElementById("note-pinned").checked = !!this.draft.pinned;
-		document.getElementById("note-delete").hidden = isNew;
+		document.getElementById("note-delete").hidden = isNew || isDefaultNote(this.draft);
 		this._renderDraftItems();
 		this._renderDraftColor();
 		this.dialog.showModal();
@@ -287,7 +364,7 @@ class Notebook {
 		else draft.text = document.getElementById("note-text").value;
 		draft.labels = parseLabels(document.getElementById("note-labels").value);
 		draft.pinned = document.getElementById("note-pinned").checked;
-		if (isBlankNote(draft)) {
+		if (isBlankNote(draft) && !isDefaultNote(draft)) {
 			if (!this.draftIsNew) this.store.remove(draft.id);
 			return;
 		}
