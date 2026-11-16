@@ -1,125 +1,145 @@
 /*
- * Creates a To-do list that consists of an array of objects, each object has the format: {"text": "", "complete": false, "order": 1, "id": ""}
- * Synced to the backend when signed in (see sync.js), stored in localStorage otherwise.
+ * The Pomodoro page's to-do list. It is a view of the default "To-do list" checklist note
+ * (label "pomodoro") in the notebook (see notebook.js), so the same list can be opened and
+ * edited under Notes. Each item is
+ *   { id, text, done, due: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" (optional), calendar: true (optional) }
+ * An item with a due date and calendar: true is shown on the Calendar (see calendar.js), which reads
+ * this list directly - the to-do is the single source of truth, nothing is copied.
+ *
+ * The to-do being worked on (picked next to the timer) is stored on the note as `current`
+ * (an entry id), so it syncs to other devices with the list.
  */
-
-/*
- * 3-way merge of two edited lists against the last synced list:
- * items added on either side are kept, items removed on either side are dropped,
- * and an item completed on either side stays complete.
- */
-function mergeTodoLists(base, mine, theirs) {
-	const baseIds = new Set(base.map(item => item.id));
-	const mineById = new Map(mine.map(item => [item.id, item]));
-	const theirIds = new Set(theirs.map(item => item.id));
-	const merged = [];
-	for (const item of theirs) {
-		const local = mineById.get(item.id);
-		if (local) {
-			merged.push({ ...item, complete: !!(item.complete || local.complete) });
-		} else if (!baseIds.has(item.id)) {
-			merged.push(item); // added on another device
-		} // else: removed locally
-	}
-	for (const item of mine) {
-		if (!theirIds.has(item.id) && !baseIds.has(item.id)) merged.push(item); // added locally
-	}
-	return merged;
-}
-
 class TodoList {
 	constructor(uiContainer = "todolist-table-container", uiItemInput = "new-item-input") {
 		this.uiContainer = uiContainer;
 		this.uiItemInput = uiItemInput;
-		this.list = [];
-		this.doc = new SyncedDoc({
-			endpoint: "/api/storage/todolist",
-			field: "list",
-			localKey: "todolist",
-			empty: () => [],
-			isEmpty: list => !Array.isArray(list) || list.length === 0,
-			merge: mergeTodoLists,
-			// Older localStorage data was saved as { list, completedList }.
-			normalize: value => Array.isArray(value) ? value : (value && value.list) || [],
-			onRemoteChange: list => this._setList(list),
-		});
 	}
 
 	init() {
-		bindSyncedDoc(this.doc, list => this._setList(list));
+		const select = document.getElementById("pomodoro-task");
+		if (select) select.addEventListener("change", () => this.setCurrent(select.value));
+		document.addEventListener("minuet:notes", () => this.displayList());
+		this.displayList();
 		return this;
 	}
 
-	_setList(list) {
-		this.list = Array.isArray(list) ? list : [];
-		this.displayList();
+	get list() {
+		return notebook.defaultNote(TODO_NOTE_ID).items || [];
 	}
 
-	async saveState() {
-		await this.doc.save(this.list);
-	}
-
-	_idNewItem(text) {
-		const last = this.list[this.list.length - 1];
-		const order = last && Number.isFinite(last.order) ? last.order + 1 : this.list.length + 1;
-		return { id: crypto.randomUUID(), text, order, complete: false };
+	_save(items, changes = {}) {
+		return notebook.store.upsert({ ...notebook.defaultNote(TODO_NOTE_ID), items, ...changes });
 	}
 
 	async addItem() {
 		const input = document.getElementById(this.uiItemInput);
+		const dateInput = document.getElementById("new-item-date");
+		const timeInput = document.getElementById("new-item-time");
+		const calendarInput = document.getElementById("new-item-calendar");
 		const newItemText = input.value.trim();
-		if (newItemText) {
-			this.list.push(this._idNewItem(newItemText));
-			input.value = "";
-			this.displayList();
-			await this.saveState();
+		if (!newItemText) return;
+		const item = { id: crypto.randomUUID(), text: newItemText, done: false };
+		if (calendarInput.checked && dateInput.value) {
+			item.due = composeDue(dateInput.value, timeInput.value);
+			item.calendar = true;
+			setRepeat(item, document.getElementById("new-item-repeat").value);
+			setStatus(item, document.getElementById("new-item-status").value);
 		}
+		input.value = "";
+		const saved = this._save([...this.list, item]);
+		// Apply the suggested/committed rules to the new to-do.
+		settleSchedule([`item:${TODO_NOTE_ID}:${item.id}`]);
+		await saved;
 	}
 
-	async markComplete(id) {
-		const item = this.list.find(item => item.id === id);
-		if (item) {
-			item.complete = true;
-			this.displayList();
-			await this.saveState();
-		}
+	/* Id of the to-do being worked on, or "" for none. */
+	get currentId() {
+		return notebook.defaultNote(TODO_NOTE_ID).current || "";
+	}
+
+	setCurrent(id) {
+		return this._save(this.list, { current: id || null });
+	}
+
+	/* The "Working on" picker lists the to-dos that are still open. */
+	_renderCurrent() {
+		const select = document.getElementById("pomodoro-task");
+		if (!select) return;
+		const open = this.list.filter(item => !item.done);
+		const current = open.some(item => item.id === this.currentId) ? this.currentId : "";
+		select.replaceChildren(
+			el("option", { value: "" }, open.length ? "Nothing selected" : "No open to-dos"),
+			...open.map(item => el("option", { value: item.id, selected: item.id === current }, item.text)));
+		select.value = current;
+	}
+
+	async toggleComplete(id) {
+		// Ticking off the to-do being worked on means it is no longer the current one.
+		const ticking = this.list.some(item => item.id === id && !item.done);
+		const items = this.list.map(item => item.id === id ? { ...item, done: !item.done } : item);
+		await this._save(items, ticking && id === this.currentId ? { current: null } : {});
 	}
 
 	async clearCompleted() {
-		this.list = this.list.filter(item => !item.complete);
-		this.displayList();
-		await this.saveState();
+		await this._save(this.list.filter(item => !item.done));
+	}
+
+	_isOverdue(item) {
+		if (item.done) return false;
+		const due = parseLocal(item.due);
+		return (item.due.includes("T") ? due : addDays(due, 1)) < new Date();
 	}
 
 	displayList() {
 		const containerInstance = document.getElementById(this.uiContainer);
 		if (!containerInstance) return;
 		containerInstance.innerHTML = '';
+		this._renderCurrent();
+		const current = this.currentId;
 		this.list.forEach((item) => {
-			const p = document.createElement("p");
-			p.textContent = item.text;
-			if (item.complete) {
-				p.style.textDecoration = "line-through";
-				containerInstance.appendChild(p);
-			} else {
-				const b = document.createElement("button");
-				p.style.textDecoration = "none";
-				b.textContent = "Mark Complete";
-				b.onclick = () => this.markComplete(item.id);
-				containerInstance.appendChild(p);
-				containerInstance.appendChild(b);
+			const checkbox = el("input", { type: "checkbox", checked: !!item.done, onchange: () => this.toggleComplete(item.id) });
+			const row = el("label", { class: "todo-item" + (item.done ? " complete" : "") + (!item.done && item.id === current ? " current" : ""), title: !item.done && item.id === current ? "Working on this now" : undefined },
+				checkbox,
+				el("span", { class: "todo-text" }, item.text));
+			containerInstance.appendChild(row);
+			if (item.due) {
+				const label = (item.calendar ? "📅 " : "") + taskSummary(item);
+				const due = item.calendar
+					? el("button", {
+						type: "button", class: "todo-due on-calendar", title: "Show on calendar",
+						onclick: () => calendarView.goTo(parseLocal(item.due)),
+					}, label)
+					: el("span", { class: "todo-due" }, label);
+				if (this._isOverdue(item)) due.classList.add("overdue");
+				containerInstance.appendChild(due);
 			}
 		});
 	}
 }
 
 const todoList = new TodoList().init();
+localStorage.removeItem("pomodoro_task");   // where an earlier version kept the "Working on" choice
 
-document.getElementById('new-item-input').addEventListener('keydown', async (event) => {
-	if (event.key === 'Enter') {
+// The date and time fields stay hidden until "Add to calendar" is ticked.
+(() => {
+	const form = document.getElementById("todo-form");
+	const dateInput = document.getElementById("new-item-date");
+	const timeInput = document.getElementById("new-item-time");
+	const calendarInput = document.getElementById("new-item-calendar");
+	const syncWhen = () => {
+		document.getElementById("new-item-when").hidden = !calendarInput.checked;
+		if (calendarInput.checked && !dateInput.value) dateInput.value = toYMD(new Date());
+	};
+	calendarInput.addEventListener("change", syncWhen);
+	form.addEventListener("submit", async (event) => {
 		event.preventDefault();
-		if (event.target.value.trim() !== '') {
-			await todoList.addItem();
-		}
-	}
-});
+		if (!document.getElementById("new-item-input").value.trim()) return;
+		await todoList.addItem();
+		calendarInput.checked = false;
+		dateInput.value = "";
+		timeInput.value = "";
+		document.getElementById("new-item-repeat").value = "";
+		document.getElementById("new-item-status").value = "";
+		syncWhen();
+	});
+})();

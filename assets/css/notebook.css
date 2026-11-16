@@ -1,0 +1,417 @@
+/* Notes: toolbar, label filter and the card grid. */
+.view-notes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.9rem;
+}
+
+.notes-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.6rem;
+}
+
+#notes-search {
+  flex: 1;
+  min-width: 10rem;
+  max-width: 28rem;
+}
+
+/* "Take a note..." bar, as at the top of Keep. */
+.note-composer {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  width: min(36rem, 100%);
+  padding: 0.2rem 0.4rem 0.2rem 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--bg-card);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+}
+
+.note-composer-text {
+  flex: 1;
+  padding: 0.55rem 1rem;
+  border: none;
+  background: none;
+  text-align: left;
+  font-weight: 500;
+  color: var(--text-muted);
+  cursor: text;
+}
+
+.note-composer-text:hover {
+  background: none;
+}
+
+.icon {
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+button.icon-button:has(.icon) {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.1rem;
+  height: 2.1rem;
+  padding: 0;
+  border-radius: 50%;
+  flex: none;
+}
+
+/* Note colours (cards, the editor and its swatches). */
+[data-color="default"] { --note-bg: #ffffff; }
+[data-color="red"] { --note-bg: #fad2cf; }
+[data-color="orange"] { --note-bg: #fde0c2; }
+[data-color="yellow"] { --note-bg: #fff3b0; }
+[data-color="green"] { --note-bg: #d9f2c4; }
+[data-color="teal"] { --note-bg: #c9efe6; }
+[data-color="blue"] { --note-bg: #d2e3fc; }
+[data-color="purple"] { --note-bg: #e6d5f7; }
+
+#note-panel-colors .swatch {
+  --swatch: var(--note-bg);
+}
+
+/* Masonry-style columns, like Keep. */
+.notes-grid {
+  columns: 16rem;
+  column-gap: 0.9rem;
+}
+
+.notes-grid .empty-state {
+  column-span: all;
+}
+
+.note-card {
+  position: relative;
+  break-inside: avoid;
+  margin-bottom: 0.9rem;
+  padding: 0.8rem 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background-color: var(--note-bg, #fff);
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.note-card:hover {
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+}
+
+.note-card-title {
+  margin: 0 1.8rem 0.4rem 0;
+  font-size: 1rem;
+  overflow-wrap: anywhere;
+}
+
+.note-card-text {
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 10;
+  line-clamp: 10;
+  overflow: hidden;
+}
+
+.note-card-title + .note-card-text:empty {
+  display: none;
+}
+
+.note-card-items {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.note-card-items li {
+  display: flex;
+  align-items: baseline;
+  gap: 0.45rem;
+  overflow-wrap: anywhere;
+}
+
+.note-card-items li.done span,
+.note-item.done input[type="text"] {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.note-card-more {
+  margin: 0.3rem 0 0;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.note-card-labels {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.6rem;
+}
+
+.note-due {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.2rem;
+  margin-left: 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+.chip.small .icon {
+  margin-right: 0.25rem;
+}
+
+/* Pin: filled when the note is on the home; on cards it appears on hover/focus when off. */
+.note-pin,
+.note-pin-toggle {
+  color: var(--text-muted);
+  opacity: 0.55;
+}
+
+.note-pin[aria-pressed="true"],
+.note-pin-toggle[aria-pressed="true"] {
+  color: var(--text-main);
+  opacity: 1;
+}
+
+.note-pin {
+  position: absolute;
+  top: 0.3rem;
+  right: 0.3rem;
+  display: inline-flex;
+  padding: 0.3rem;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.note-pin[aria-pressed="false"] {
+  opacity: 0;
+}
+
+.note-card:hover .note-pin,
+.note-card:focus-within .note-pin,
+.note-pin:focus-visible {
+  opacity: 1;
+}
+
+@media (hover: none) {
+  .note-pin[aria-pressed="false"] {
+    opacity: 0.45;
+  }
+}
+
+/* ---------- Editor ---------- */
+.note-dialog {
+  background-color: var(--note-bg, #fff);
+  overflow: visible;
+}
+
+.note-dialog form {
+  max-height: calc(100vh - 2rem);
+  overflow-y: auto;
+  gap: 0.6rem;
+}
+
+/* Title, text and entries are typed straight onto the note, without boxes. */
+.note-dialog #note-title,
+.note-dialog #note-text,
+.note-item-main input[type="text"] {
+  border: none;
+  border-radius: 0;
+  padding: 0.15rem 0;
+  background: transparent;
+  outline: none;
+}
+
+.note-head {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+#note-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+}
+
+.dialog #note-text {
+  min-height: 2rem;
+  max-height: 55vh;
+  resize: none;
+  line-height: 1.45;
+}
+
+.note-items {
+  display: flex;
+  flex-direction: column;
+}
+
+.note-item {
+  border-top: 1px solid transparent;
+  border-bottom: 1px solid transparent;
+}
+
+.note-item:focus-within {
+  border-color: rgba(0, 0, 0, 0.12);
+}
+
+.note-item-main {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.note-item-main input[type="text"] {
+  flex: 1;
+  min-width: 0;
+}
+
+.note-item.done input[type="text"] {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+/* Per-entry buttons stay out of the way until the entry is hovered or focused. */
+.note-item-main button.icon-button {
+  width: 1.7rem;
+  height: 1.7rem;
+  opacity: 0;
+}
+
+.note-item:hover .icon-button,
+.note-item:focus-within .icon-button,
+.note-item-calendar[aria-pressed="true"] {
+  opacity: 1;
+}
+
+.note-item-calendar[aria-pressed="true"] {
+  color: var(--btn-primary-strong);
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+@media (hover: none) {
+  .note-item-main button.icon-button {
+    opacity: 0.6;
+  }
+}
+
+.note-item-when,
+.note-when {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.note-item-when {
+  padding: 0 0 0.35rem 1.7rem;
+}
+
+.note-item-when input,
+.note-item-when select,
+.note-when input,
+.note-when select {
+  padding: 0.1rem 0.35rem;
+  font-size: 0.85rem;
+  color: var(--text-main);
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+.note-add-item {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.25rem 0;
+  border: none;
+  background: none;
+  color: var(--text-muted);
+  text-align: left;
+}
+
+.note-add-item:hover {
+  background: none;
+  color: var(--text-main);
+}
+
+.note-done-divider {
+  margin-top: 0.4rem;
+  padding: 0.4rem 0 0.2rem;
+  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.note-dialog .note-card-labels:empty {
+  display: none;
+}
+
+.note-dialog .note-card-labels {
+  margin-top: 0;
+}
+
+.note-dialog #note-labels {
+  background-color: rgba(255, 255, 255, 0.6);
+}
+
+/* Bottom bar: colour, labels, options menu ... edited time, Close. */
+.note-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.15rem;
+  margin: 0.2rem -0.5rem -0.4rem;
+}
+
+.note-edited {
+  flex: 1;
+  padding: 0 0.5rem;
+  text-align: right;
+  font-size: 0.75rem;
+  color: var(--text-muted);
+}
+
+.menu-wrap {
+  position: relative;
+}
+
+.menu {
+  position: absolute;
+  bottom: calc(100% + 0.3rem);
+  left: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 15rem;
+  padding: 0.3rem 0;
+  border-radius: 8px;
+  background-color: var(--bg-card);
+  box-shadow: 0 2px 12px rgba(0, 0, 0, 0.3);
+}
+
+.menu button {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  padding: 0.5rem 0.9rem;
+  border: none;
+  border-radius: 0;
+  background: none;
+  text-align: left;
+  white-space: nowrap;
+}
+
+.menu button:hover {
+  background-color: var(--bg-hover);
+}

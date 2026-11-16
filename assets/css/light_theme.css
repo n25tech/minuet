@@ -14,7 +14,13 @@
   --text-main: var(--slate-dark);
   --text-muted: var(--slate-muted);
 
+  --bg-hover: #f1f5ee;
+  --border: #cfd8d3;
+  --danger: #b3261e;
+
   --btn-primary: var(--moss-green);
+  /* Darker moss: white text on --moss-green itself is too faint to read. */
+  --btn-primary-strong: #5f7f2a;
   --btn-text: #ffffff;
 
   /* Dynamic Timer States */

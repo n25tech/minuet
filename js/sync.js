@@ -228,8 +228,11 @@ class SyncedDoc {
 /*
  * Keeps a document in step with sign-in state and other devices:
  * loads once the session is known, reloads on sign-in/out, and refreshes
- * whenever the tab becomes visible again.
+ * whenever the tab becomes visible again and every half minute while it is
+ * (changes also arrive from the server itself, when an assistant makes them).
  */
+const REFRESH_INTERVAL_MS = 30 * 1000;
+
 function bindSyncedDoc(doc, onLoaded) {
 	window.minuetAuth.docs.push(doc);
 	const reload = async () => onLoaded(await doc.load());
@@ -239,4 +242,125 @@ function bindSyncedDoc(doc, onLoaded) {
 		if (document.visibilityState === "visible") doc.refresh();
 	});
 	window.addEventListener("focus", () => doc.refresh());
+	setInterval(() => {
+		if (document.visibilityState === "visible") doc.refresh();
+	}, REFRESH_INTERVAL_MS);
+}
+
+/*
+ * 3-way merge of two edited lists of { id, updatedAt, ... } items against the last synced list.
+ * Items added on either side are kept; an item edited on one side keeps that edit (even if the
+ * other side deleted it); an item edited on both sides is combined by mergeEdited; an item
+ * deleted on one side and untouched on the other is dropped.
+ */
+function mergeById(base, mine, theirs) {
+	const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+	const baseById = new Map(base.map(item => [item.id, item]));
+	const mineById = new Map(mine.map(item => [item.id, item]));
+	const theirIds = new Set(theirs.map(item => item.id));
+	const merged = [];
+	for (const item of theirs) {
+		const local = mineById.get(item.id);
+		const original = baseById.get(item.id);
+		if (local) {
+			if (original && same(local, original)) merged.push(item);
+			else if (original && same(item, original)) merged.push(local);
+			else merged.push(mergeEdited(original, local, item));
+		} else if (!original || !same(item, original)) {
+			merged.push(item); // added on another device, or edited there after being deleted here
+		}
+	}
+	for (const item of mine) {
+		if (theirIds.has(item.id)) continue;
+		const original = baseById.get(item.id);
+		if (!original || !same(item, original)) merged.push(item); // added here, or edited here after being deleted there
+	}
+	return merged;
+}
+
+const TEXT_CONFLICT_MARKER = "\n\n--- From another device ---\n";
+
+/*
+ * One item edited on both devices: the more recent edit wins, except that nothing typed is
+ * dropped - a checklist ("items") is merged entry by entry, and when both sides changed the
+ * "text" the older version is appended to the newer one.
+ */
+function mergeEdited(original, local, remote) {
+	const localIsNewer = (local.updatedAt || 0) > (remote.updatedAt || 0);
+	const [newer, older] = localIsNewer ? [local, remote] : [remote, local];
+	const merged = { ...newer };
+	if (Array.isArray(local.items) && Array.isArray(remote.items)) {
+		merged.items = mergeById((original && original.items) || [], local.items, remote.items);
+	}
+	if (typeof local.text === "string" && typeof remote.text === "string" && local.text !== remote.text) {
+		const baseText = (original && original.text) || "";
+		if (local.text === baseText) merged.text = remote.text;
+		else if (remote.text === baseText) merged.text = local.text;
+		else merged.text = newer.text + TEXT_CONFLICT_MARKER + older.text;
+	}
+	return merged;
+}
+
+/*
+ * A synced list of { id, updatedAt, ... } items (notes, calendar events).
+ * onChange runs whenever the list changes, locally or from another device; onLoad runs after
+ * each (re)load, i.e. at startup and on sign-in/out. isBusy and flushPending are passed to
+ * SyncedDoc for edits that haven't reached the list yet.
+ */
+class SyncedList {
+	constructor({ endpoint, field, localKey, onChange, onLoad, isBusy, flushPending }) {
+		this.items = [];
+		this.onChange = onChange;
+		this.onLoad = onLoad;
+		this.doc = new SyncedDoc({
+			endpoint,
+			field,
+			localKey,
+			empty: () => [],
+			isEmpty: list => !Array.isArray(list) || list.length === 0,
+			merge: mergeById,
+			normalize: value => Array.isArray(value) ? value : [],
+			onRemoteChange: list => this._set(list),
+			isBusy,
+			flushPending,
+		});
+	}
+
+	init() {
+		bindSyncedDoc(this.doc, list => {
+			this._set(list);
+			if (this.onLoad) this.onLoad();
+		});
+		return this;
+	}
+
+	_set(list) {
+		this.items = Array.isArray(list) ? list : [];
+		this.onChange();
+	}
+
+	get(id) {
+		return this.items.find(item => item.id === id);
+	}
+
+	/* Add or replace items (matched by id) and save. */
+	upsert(...changed) {
+		for (const item of changed) {
+			item.updatedAt = Date.now();
+			const index = this.items.findIndex(existing => existing.id === item.id);
+			if (index === -1) this.items.push(item);
+			else this.items[index] = item;
+		}
+		return this._commit();
+	}
+
+	remove(id) {
+		this.items = this.items.filter(item => item.id !== id);
+		return this._commit();
+	}
+
+	_commit() {
+		this.onChange();
+		return this.doc.save(this.items);
+	}
 }

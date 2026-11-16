@@ -1,11 +1,11 @@
 import { getUserIdFromSession } from '../_sessions_kv/sessions.js';
 
-// Upper bound on a stored document (notes text or serialised todo list).
+// Default upper bound on a stored document (notes text or a serialised list).
 export const MAX_BODY_BYTES = 256 * 1024;
 
 // Shared GET/POST handlers for per-user versioned documents.
 // POST returns 200 {…, version} on success or 409 with the current server state on a version conflict.
-export function syncHandlers({ fetch, save, field, isValid }) {
+export function syncHandlers({ fetch, save, field, isValid, maxBytes = MAX_BODY_BYTES }) {
   async function onRequestGet(context) {
     const userId = await getUserIdFromSession(context);
     if (!userId) return Response.json({ error: 'Not signed in' }, { status: 401 });
@@ -21,7 +21,7 @@ export function syncHandlers({ fetch, save, field, isValid }) {
       return Response.json({ error: 'Content-Type must be application/json' }, { status: 415 });
     }
     const text = await context.request.text();
-    if (new TextEncoder().encode(text).length > MAX_BODY_BYTES) {
+    if (new TextEncoder().encode(text).length > maxBytes) {
       return Response.json({ error: 'Payload too large' }, { status: 413 });
     }
     let body = null;

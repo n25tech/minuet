@@ -1,4 +1,7 @@
 /*
+ * TEST FIXTURE (not shipped): the app's former distraction-diary script, kept because
+ * tests/sync.test.js uses it to exercise SyncedDoc end to end against /api/storage/notes.
+ *
  * Notes / distraction diary textarea, synced to the backend when signed in
  * (see sync.js) and stored in localStorage otherwise.
  */

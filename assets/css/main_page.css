@@ -1,28 +1,83 @@
 .main-page {
-  background-color: var(--bg-app);
-  color: var(--text-color);
-  transition: background-color 0.3s ease, color 0.3s ease;
-  display: grid;
-  grid-template-columns: 1fr 1.5fr 1fr;
-  grid-template-rows: auto 1fr 1fr;
-  grid-template-areas:
-    "navbar navbar navbar"
-    "left center-top right"
-    "left center-bottom right";
+  display: flex;
+  flex-direction: column;
   height: 100vh;
-  margin: 0;
 }
 
 .navbar {
-  grid-area: navbar;
+  flex: none;
   background-color: var(--bg-card);
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 1rem;
   padding: 0 1.5rem;
   height: 48px;
   box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-  order: -1;
+  position: relative;
+  z-index: 10;
+}
+
+.navbar > a {
+  display: flex;
+}
+
+/* Feature switcher: Pomodoro / Notes / Calendar */
+.nav-tabs {
+  display: flex;
+  align-self: stretch;
+  gap: 0.25rem;
+  margin-right: auto;
+}
+
+.nav-tabs a {
+  display: flex;
+  align-items: center;
+  padding: 0 0.9rem;
+  color: var(--text-main);
+  text-decoration: none;
+  border-bottom: 3px solid transparent;
+  border-top: 3px solid transparent;
+}
+
+/* Settings shows as a gear where there is no room for the word (see the small-screen rules). */
+.nav-icon {
+  display: none;
+  font-size: 1.15rem;
+}
+
+.nav-tabs a:hover {
+  background-color: var(--bg-hover);
+}
+
+.nav-tabs a[aria-current="page"] {
+  border-bottom-color: var(--btn-primary-strong);
+  font-weight: 600;
+}
+
+.views {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+
+.view {
+  min-height: 100%;
+  padding: 1.25rem 1.5rem;
+}
+
+.panel {
+  background-color: var(--bg-card);
+  border-radius: 10px;
+  padding: 1rem 1.25rem;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+/* ---------- Pomodoro view ---------- */
+.view-pomodoro {
+  display: grid;
+  grid-template-columns: 1fr 1.2fr 1fr;
+  gap: 1.25rem;
+  align-items: start;
 }
 
 .navbar-signin {
@@ -65,37 +120,132 @@
   align-items: center;
 }
 
-.left-column {
-  /*background-color: aqua;*/
-  grid-area: left;
-  height: 100%;
-  display: flex;
-  justify-content: center;
-}
-
+.left-column,
 .right-column {
-  /*
-  background-color: lightgray;
   display: flex;
-  */
-  grid-area: right;
-  height: 100%;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 0;
 }
 
 .center-top-column {
-  /*background-color: green;*/
-  grid-area: center-top;
-  height: 100%;
   display: flex;
   justify-content: center;
-  align-items: center;
 }
 
-.center-bottom-column {
-  /*background-color: yellow;*/
-  grid-area: center-bottom;
-  height: 100%;
+.pomodoro-card {
+  text-align: center;
+  min-width: 16rem;
+  padding: 1.5rem 2rem;
 }
+
+#pomodoro-timer-display {
+  margin: 0.75rem 0 1rem;
+  font-size: 4rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.pomodoro-task {
+  margin-top: 0.75rem;
+  text-align: left;
+}
+
+.pomodoro-task select {
+  width: 100%;
+  max-width: 20rem;
+  text-overflow: ellipsis;
+}
+
+/* The to-do picked as "Working on". */
+.todo-item.current {
+  margin: 0 -0.4rem;
+  padding: 0.3rem 0.4rem 0.2rem;
+  border-left: 3px solid var(--btn-primary-strong);
+  border-radius: 4px;
+  background-color: var(--mint-light);
+  font-weight: 600;
+}
+
+#notes-area {
+  width: 100%;
+  min-height: 16rem;
+  resize: vertical;
+}
+
+/* To-do list */
+.todo-items {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.todo-item {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  padding-top: 0.3rem;
+  cursor: pointer;
+}
+
+.todo-text {
+  overflow-wrap: anywhere;
+}
+
+.todo-item.complete .todo-text {
+  text-decoration: line-through;
+  color: var(--text-muted);
+}
+
+.todo-due {
+  align-self: flex-start;
+  margin-left: 1.6rem;
+  padding: 0;
+  border: none;
+  background: none;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+button.todo-due:hover {
+  background: none;
+  text-decoration: underline;
+}
+
+.todo-due.overdue {
+  color: var(--danger);
+}
+
+.todo-form {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.5rem;
+  padding-top: 0.75rem;
+  border-top: 1px solid var(--border);
+}
+
+.todo-form > input[type="text"] {
+  width: 100%;
+}
+
+.todo-when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.todo-when select {
+  font-size: 0.85rem;
+}
+
+.left-column > .quiet {
+  align-self: flex-start;
+  padding-left: 0;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
 /* Signed-in indicator in the navbar */
 .signin-toggle.signed-in {
   display: inline-flex;
@@ -144,4 +294,68 @@
 .signout-button {
   margin-top: 0.4rem;
   cursor: pointer;
+}
+
+@media (max-width: 800px) {
+  .navbar {
+    gap: 0.5rem;
+    padding: 0 0.75rem;
+  }
+
+  .navbar-brand {
+    display: none;
+  }
+
+  /* Four tabs plus the account button have to fit a phone: tighter tabs, a gear for Settings,
+     and the account shown as its status dot. If it still doesn't fit, the tabs scroll sideways. */
+  .nav-tabs {
+    flex: 1;
+    min-width: 0;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .nav-tabs a {
+    flex: none;
+    padding: 0 0.45rem;
+    font-size: 0.95rem;
+  }
+
+  .nav-icon {
+    display: inline;
+  }
+
+  .nav-text {
+    display: none;
+  }
+
+  .navbar-signin {
+    flex: none;
+  }
+
+  .signin-toggle {
+    padding: 0.35rem 0.4rem;
+    white-space: nowrap;
+  }
+
+  .signin-toggle.signed-in .signin-label {
+    display: none;
+  }
+
+  .signin-menu {
+    max-width: calc(100vw - 1.5rem);
+  }
+
+  .view {
+    padding: 0.75rem;
+  }
+
+  .view-pomodoro {
+    grid-template-columns: 1fr;
+  }
+
+  .center-top-column {
+    order: -1;
+  }
 }
