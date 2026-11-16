@@ -6,8 +6,8 @@
  * An item with a due date and calendar: true is shown on the Calendar (see calendar.js), which reads
  * this list directly - the to-do is the single source of truth, nothing is copied.
  *
- * The to-do being worked on (picked next to the timer) is remembered on this device only,
- * in localStorage under "pomodoro_task".
+ * The to-do being worked on (picked next to the timer) is stored on the note as `current`
+ * (an entry id), so it syncs to other devices with the list.
  */
 class TodoList {
 	constructor(uiContainer = "todolist-table-container", uiItemInput = "new-item-input") {
@@ -27,8 +27,8 @@ class TodoList {
 		return notebook.defaultNote(TODO_NOTE_ID).items || [];
 	}
 
-	_save(items) {
-		return notebook.store.upsert({ ...notebook.defaultNote(TODO_NOTE_ID), items });
+	_save(items, changes = {}) {
+		return notebook.store.upsert({ ...notebook.defaultNote(TODO_NOTE_ID), items, ...changes });
 	}
 
 	async addItem() {
@@ -54,13 +54,11 @@ class TodoList {
 
 	/* Id of the to-do being worked on, or "" for none. */
 	get currentId() {
-		return localStorage.getItem("pomodoro_task") || "";
+		return notebook.defaultNote(TODO_NOTE_ID).current || "";
 	}
 
 	setCurrent(id) {
-		if (id) localStorage.setItem("pomodoro_task", id);
-		else localStorage.removeItem("pomodoro_task");
-		this.displayList();
+		return this._save(this.list, { current: id || null });
 	}
 
 	/* The "Working on" picker lists the to-dos that are still open. */
@@ -77,9 +75,9 @@ class TodoList {
 
 	async toggleComplete(id) {
 		// Ticking off the to-do being worked on means it is no longer the current one.
-		const item = this.list.find(item => item.id === id);
-		if (item && !item.done && id === this.currentId) localStorage.removeItem("pomodoro_task");
-		await notebook.toggleItem(TODO_NOTE_ID, id);
+		const ticking = this.list.some(item => item.id === id && !item.done);
+		const items = this.list.map(item => item.id === id ? { ...item, done: !item.done } : item);
+		await this._save(items, ticking && id === this.currentId ? { current: null } : {});
 	}
 
 	async clearCompleted() {
@@ -120,6 +118,7 @@ class TodoList {
 }
 
 const todoList = new TodoList().init();
+localStorage.removeItem("pomodoro_task");   // where an earlier version kept the "Working on" choice
 
 // The date and time fields stay hidden until "Add to calendar" is ticked.
 (() => {
