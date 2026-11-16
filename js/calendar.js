@@ -1,6 +1,6 @@
 /*
- * Calendar: month, week and day views over the user's events, plus the to-dos that were
- * added with a date and "Add to calendar" (read live from the to-do list note via todolist.js, never copied).
+ * Calendar: month, week and day views over the user's events, plus the notes and checklist
+ * entries that were added to the calendar (read live from notebook.js, never copied).
  *
  * Events are { id, title, start, end, allDay, repeat, exdates, color, description, updatedAt }
  * (formats in calendar-core.js), synced to the backend when signed in (see sync.js) and
@@ -95,14 +95,13 @@ class CalendarView {
 			allDay: !!occurrence.event.allDay,
 			color: EVENT_COLORS.includes(occurrence.event.color) ? occurrence.event.color : EVENT_COLORS[0],
 		}));
-		const todos = typeof todoList === "undefined" ? [] : todoList.list;
-		for (const todo of todos) {
-			if (!todo.calendar || !todo.due) continue;
-			const timed = todo.due.includes("T");
-			const due = parseLocal(todo.due);
+		// Notes, and single checklist entries, that were added to the calendar.
+		for (const entry of notebook.calendarEntries()) {
+			const timed = entry.due.includes("T");
+			const due = parseLocal(entry.due);
 			if (Number.isNaN(due.getTime())) continue;
 			const dueEnd = timed ? new Date(due.getTime() + 30 * 60 * 1000) : addDays(due, 1);
-			if (due < end && dueEnd > start) items.push({ todo, title: todo.text, start: due, end: dueEnd, allDay: !timed, key: toYMD(due) });
+			if (due < end && dueEnd > start) items.push({ entry, title: entry.title, start: due, end: dueEnd, allDay: !timed, key: toYMD(due) });
 		}
 		return items.sort((a, b) => (b.allDay - a.allDay) || (a.start - b.start));
 	}
@@ -156,7 +155,7 @@ class CalendarView {
 
 	/* A compact one-line entry (month cells and the all-day row). */
 	_chip(occurrence, day) {
-		if (occurrence.todo) return this._todoChip(occurrence);
+		if (occurrence.entry) return this._entryChip(occurrence);
 		const solid = occurrence.allDay || occurrence.end - occurrence.start >= DAY_MS;
 		const startsToday = !day || toYMD(occurrence.start) === toYMD(day);
 		const time = solid || !startsToday ? "" : formatTime(occurrence.start) + " ";
@@ -169,16 +168,31 @@ class CalendarView {
 		}, solid ? null : el("span", { class: "cal-dot" }), time + occurrence.title);
 	}
 
-	_todoChip(occurrence) {
-		const { todo } = occurrence;
-		const time = occurrence.allDay ? "" : formatTime(occurrence.start) + " ";
+	/* A note (opens the note) or a checklist entry (can be ticked off right here). */
+	_entryChip(occurrence) {
+		return this._entry(occurrence, "cal-chip", (occurrence.allDay ? "" : formatTime(occurrence.start) + " ") + occurrence.title);
+	}
+
+	_entry(occurrence, kind, text, style) {
+		const { note, item } = occurrence.entry;
+		if (!item) {
+			return el("button", {
+				type: "button",
+				class: `${kind} note`,
+				style,
+				dataset: { color: note.color || "default" },
+				title: `Note: ${occurrence.title}`,
+				onclick: event => { event.stopPropagation(); notebook.show(note.id); },
+			}, icon("label", 12), el("span", {}, text));
+		}
 		return el("label", {
-			class: "cal-chip todo" + (todo.done ? " complete" : ""),
-			title: `To-do: ${todo.text}`,
+			class: `${kind} todo` + (item.done ? " complete" : ""),
+			style,
+			title: `${note.title || "Checklist"}: ${item.text}`,
 			onclick: event => event.stopPropagation(),
 		},
-			el("input", { type: "checkbox", checked: !!todo.done, onchange: () => todoList.toggleComplete(todo.id) }),
-			el("span", {}, time + todo.text));
+			el("input", { type: "checkbox", checked: !!item.done, onchange: () => notebook.toggleItem(note.id, item.id) }),
+			el("span", {}, text));
 	}
 
 	_monthGrid(start, occurrences) {
@@ -268,17 +282,7 @@ class CalendarView {
 			width: `${100 / cols}%`,
 		};
 		const range = `${formatTime(occurrence.start)} – ${formatTime(occurrence.end)}`;
-		if (occurrence.todo) {
-			const { todo } = occurrence;
-			return el("label", {
-				class: "cal-block todo" + (todo.done ? " complete" : ""),
-				style,
-				title: `To-do: ${todo.text}`,
-				onclick: event => event.stopPropagation(),
-			},
-				el("input", { type: "checkbox", checked: !!todo.done, onchange: () => todoList.toggleComplete(todo.id) }),
-				el("span", {}, `${todo.text} · ${formatTime(occurrence.start)}`));
-		}
+		if (occurrence.entry) return this._entry(occurrence, "cal-block", `${occurrence.title} · ${formatTime(occurrence.start)}`, style);
 		// Under 45 minutes there is only room for one line.
 		const short = endMin - startMin < 45;
 		return el("button", {

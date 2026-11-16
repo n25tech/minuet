@@ -14,16 +14,16 @@
   <script src="js/signin.js?v=4" defer></script>
   <script src="js/sync.js?v=4" defer></script>
   <script src="js/calendar-core.js?v=1" defer></script>
-  <script src="js/notebook.js?v=1" defer></script>
-  <script src="js/todolist.js?v=4" defer></script>
+  <script src="js/notebook.js?v=2" defer></script>
+  <script src="js/todolist.js?v=5" defer></script>
   <script src="js/diary.js?v=1" defer></script>
-  <script src="js/calendar.js?v=1" defer></script>
+  <script src="js/calendar.js?v=2" defer></script>
   <link rel="stylesheet" href="assets/css/styles.css?v=3">
   <link rel="stylesheet" href="assets/css/light_theme.css?v=3">
   <link rel="stylesheet" href="assets/css/dark_theme.css?v=2">
   <link rel="stylesheet" href="assets/css/main_page.css?v=4">
-  <link rel="stylesheet" href="assets/css/notebook.css?v=1">
-  <link rel="stylesheet" href="assets/css/calendar.css?v=1">
+  <link rel="stylesheet" href="assets/css/notebook.css?v=2">
+  <link rel="stylesheet" href="assets/css/calendar.css?v=2">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -80,13 +80,13 @@
             <div id="todolist-table-container" class="todo-items"></div>
             <form id="todo-form" class="todo-form">
               <input type="text" id="new-item-input" placeholder="New item" aria-label="New to-do item">
-              <div class="todo-when">
-                <input type="date" id="new-item-date" aria-label="Due date (optional)">
-                <input type="time" id="new-item-time" aria-label="Due time (optional)">
-              </div>
-              <label class="check" title="Show this to-do on the Calendar at its date and time">
+              <label class="check" title="Show this to-do on the Calendar at a date and time">
                 <input type="checkbox" id="new-item-calendar"> Add to calendar
               </label>
+              <div class="todo-when" id="new-item-when" hidden>
+                <input type="date" id="new-item-date" aria-label="Date">
+                <input type="time" id="new-item-time" aria-label="Time (optional)">
+              </div>
               <button type="submit" class="primary">Add</button>
             </form>
             <button type="button" class="quiet" onclick="todoList.clearCompleted()">Clear completed</button>
@@ -113,8 +113,10 @@
               <button type="button" data-notes-scope="all">All notes</button>
             </div>
             <input type="search" id="notes-search" placeholder="Search all notes" aria-label="Search all notes">
-            <button type="button" id="notes-new-text" class="primary">+ Note</button>
-            <button type="button" id="notes-new-list">+ Checklist</button>
+          </div>
+          <div class="note-composer">
+            <button type="button" id="notes-new-text" class="note-composer-text">Take a note...</button>
+            <button type="button" id="notes-new-list" class="icon-button" title="New checklist" aria-label="New checklist"></button>
           </div>
           <div id="notes-labels" class="chip-row" aria-label="Filter by label"></div>
           <div id="notes-grid" class="notes-grid"></div>
@@ -128,20 +130,37 @@
 
       <dialog id="note-dialog" class="dialog note-dialog">
         <form id="note-form">
-          <input type="text" id="note-title" class="dialog-title" placeholder="Title" aria-label="Title">
-          <textarea id="note-text" placeholder="Take a note..." aria-label="Note"></textarea>
+          <div class="note-head">
+            <input type="text" id="note-title" placeholder="Title" aria-label="Title">
+            <button type="button" id="note-pin" class="icon-button note-pin-toggle" aria-label="Show on Notes home"></button>
+          </div>
+          <textarea id="note-text" rows="1" placeholder="Take a note..." aria-label="Note"></textarea>
           <div id="note-items" class="note-items"></div>
-          <input type="text" id="note-new-item" placeholder="+ List item" aria-label="New list item">
-          <div id="note-colors" class="swatches" role="group" aria-label="Colour"></div>
-          <label class="field">Labels
-            <input type="text" id="note-labels" list="note-label-options" placeholder="e.g. work, ideas (comma separated)">
+          <div id="note-when" class="note-when" hidden>
+            <span>On calendar</span>
+            <input type="date" id="note-date" aria-label="Date">
+            <input type="time" id="note-time" aria-label="Time (optional)">
+            <button type="button" id="note-when-remove" class="icon-button" title="Remove note from calendar" aria-label="Remove note from calendar"></button>
+          </div>
+          <div id="note-chips" class="note-card-labels"></div>
+          <div id="note-panel-colors" class="swatches" role="group" aria-label="Colour" hidden></div>
+          <label id="note-panel-labels" class="field" hidden>Labels (comma separated)
+            <input type="text" id="note-labels" list="note-label-options" placeholder="e.g. work, ideas">
             <datalist id="note-label-options"></datalist>
           </label>
-          <label class="check"><input type="checkbox" id="note-pinned"> Show on Notes home</label>
-          <div class="dialog-actions">
-            <button type="button" id="note-delete" class="danger">Delete</button>
-            <span class="spacer"></span>
-            <button type="submit" class="primary">Done</button>
+          <div class="note-bar">
+            <button type="button" id="note-color-button" class="icon-button" title="Colour" aria-label="Colour"></button>
+            <button type="button" id="note-label-button" class="icon-button" title="Labels" aria-label="Labels"></button>
+            <div class="menu-wrap">
+              <button type="button" id="note-settings" class="icon-button" title="Note options" aria-label="Note options" aria-haspopup="menu" aria-expanded="false"></button>
+              <div id="note-menu" class="menu" role="menu" hidden>
+                <button type="button" role="menuitem" id="note-toggle-list"></button>
+                <button type="button" role="menuitem" id="note-toggle-calendar"></button>
+                <button type="button" role="menuitem" id="note-delete" class="danger">Delete note</button>
+              </div>
+            </div>
+            <span id="note-edited" class="note-edited"></span>
+            <button type="submit" class="quiet">Close</button>
           </div>
         </form>
       </dialog>

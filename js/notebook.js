@@ -1,6 +1,10 @@
 /*
  * Notes: Keep-style cards. Each note is
- *   { id, type: "text" | "list", title, text, items: [{ id, text, done }], color, labels: [..], pinned, createdAt, updatedAt }
+ *   { id, type: "text" | "list", title, text, items: [{ id, text, done, due?, calendar? }],
+ *     color, labels: [..], pinned, due?, calendar?, createdAt, updatedAt }
+ * A note is plain text or a checklist and can be switched between the two. A whole note, or a
+ * single checklist entry, can be added to the calendar: calendar: true with
+ * due: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" (see calendar.js, which reads them from here).
  * Synced to the backend when signed in (see sync.js), stored in localStorage otherwise.
  *
  * The Notes home shows only the notes the user pinned to it ("Show on Notes home");
@@ -57,6 +61,36 @@ async function loadLegacyPomodoroData() {
 
 const NOTE_COLORS = ["default", "red", "orange", "yellow", "green", "teal", "blue", "purple"];
 
+// Material Design icon outlines (24x24).
+const ICONS = {
+	pin: "M16 9V4h1c.55 0 1-.45 1-1s-.45-1-1-1H7c-.55 0-1 .45-1 1s.45 1 1 1h1v5c0 1.66-1.34 3-3 3v2h5.97v7l1 1 1-1v-7H19v-2c-1.66 0-3-1.34-3-3z",
+	calendar: "M19 3h-1V1h-2v2H8V1H6v2H5c-1.11 0-2 .9-2 2v14c0 1.1.89 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16H5V8h14v11z",
+	more: "M12 8c1.1 0 2-.9 2-2s-.9-2-2-2-2 .9-2 2 .9 2 2 2zm0 2c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm0 6c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z",
+	checklist: "M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-9 14l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z",
+	label: "M17.63 5.84C17.27 5.33 16.67 5 16 5L5 5.01C3.9 5.01 3 5.9 3 7v10c0 1.1.9 1.99 2 1.99L16 19c.67 0 1.27-.33 1.63-.84L22 12l-4.37-6.16z",
+	palette: "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
+	close: "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
+	add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+};
+
+function icon(name, size = 18) {
+	const span = document.createElement("span");
+	span.className = "icon";
+	span.innerHTML = `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path fill="currentColor" d="${ICONS[name]}"/></svg>`;
+	return span;
+}
+
+/* "2026-11-17" or "2026-11-17T15:00" as a short readable date. */
+function formatDue(due) {
+	const date = parseLocal(due);
+	const options = { weekday: "short", day: "numeric", month: "short" };
+	if (date.getFullYear() !== new Date().getFullYear()) options.year = "numeric";
+	if (due.includes("T")) Object.assign(options, { hour: "numeric", minute: "2-digit" });
+	return date.toLocaleString([], options);
+}
+
+const composeDue = (date, time) => date ? (time ? `${date}T${time}` : date) : "";
+
 function noteMatches(note, query) {
 	const haystack = [note.title, note.text, ...(note.items || []).map(item => item.text), ...(note.labels || [])]
 		.join("\n").toLowerCase();
@@ -74,6 +108,11 @@ function parseLabels(text) {
 
 function isBlankNote(note) {
 	return !note.title.trim() && !note.text.trim() && !(note.items || []).some(item => item.text.trim());
+}
+
+/* What a note is called where there is only room for one line (calendar entries). */
+function noteHeading(note) {
+	return note.title || (note.text || "").trim().split("\n")[0] || ((note.items || [])[0] || {}).text || "(Untitled note)";
 }
 
 class Notebook {
@@ -95,6 +134,26 @@ class Notebook {
 			isBusy: () => this.unsaved.some(editor => editor.isBusy()),
 			flushPending: () => this.unsaved.forEach(editor => editor.flush()),
 		});
+	}
+
+	init() {
+		document.querySelectorAll("[data-notes-scope]").forEach(button => {
+			button.addEventListener("click", () => this.setScope(button.dataset.notesScope));
+		});
+		this.search.addEventListener("input", () => this.render());
+		document.getElementById("notes-new-text").addEventListener("click", () => this.create("text"));
+		document.getElementById("notes-new-list").append(icon("checklist", 20));
+		document.getElementById("notes-new-list").addEventListener("click", () => this.create("list"));
+		this._bindEditor();
+		this.store.init();
+		this.render();
+		return this;
+	}
+
+	setScope(scope) {
+		this.scope = scope;
+		localStorage.setItem("notes_scope", scope);
+		this.render();
 	}
 
 	/* The stored default note, or a fresh one if it hasn't been created yet. */
@@ -120,25 +179,6 @@ class Notebook {
 		if (created.length) this.store.upsert(...created);
 	}
 
-	init() {
-		document.querySelectorAll("[data-notes-scope]").forEach(button => {
-			button.addEventListener("click", () => this.setScope(button.dataset.notesScope));
-		});
-		this.search.addEventListener("input", () => this.render());
-		document.getElementById("notes-new-text").addEventListener("click", () => this.create("text"));
-		document.getElementById("notes-new-list").addEventListener("click", () => this.create("list"));
-		this._bindEditor();
-		this.store.init();
-		this.render();
-		return this;
-	}
-
-	setScope(scope) {
-		this.scope = scope;
-		localStorage.setItem("notes_scope", scope);
-		this.render();
-	}
-
 	get labels() {
 		const labels = new Map();
 		for (const note of this.store.items) {
@@ -156,10 +196,34 @@ class Notebook {
 		return [...notes].sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0));
 	}
 
+	/* Tick or untick one entry of a checklist note. */
+	toggleItem(noteId, itemId) {
+		const note = this.store.get(noteId);
+		if (!note) return;
+		const items = (note.items || []).map(item => item.id === itemId ? { ...item, done: !item.done } : item);
+		return this.store.upsert({ ...note, items });
+	}
+
+	/*
+	 * Everything the notes put on the calendar: whole notes that were added to it ({ note, title, due })
+	 * and single checklist entries that were ({ note, item, title, due }).
+	 */
+	calendarEntries() {
+		const entries = [];
+		for (const note of this.store.items) {
+			if (note.calendar && note.due) entries.push({ note, title: noteHeading(note), due: note.due });
+			if (note.type !== "list") continue;
+			for (const item of note.items || []) {
+				if (item.calendar && item.due) entries.push({ note, item, title: item.text, due: item.due });
+			}
+		}
+		return entries;
+	}
+
 	/* ---------- Grid ---------- */
 
 	render() {
-		// The Pomodoro page's to-do list and diary, and the calendar's to-dos, are drawn from the notes.
+		// The Pomodoro page's to-do list and diary, and the calendar's entries, are drawn from the notes.
 		document.dispatchEvent(new CustomEvent("minuet:notes"));
 		if (!this.grid) return;
 		const searching = !!this.search.value.trim();
@@ -180,7 +244,7 @@ class Notebook {
 			this.grid.replaceChildren(...notes.map(note => this._card(note)));
 			return;
 		}
-		let message = "No notes yet. Create one with “+ Note” or “+ Checklist”.";
+		let message = "Notes you add appear here.";
 		if (searching) message = "No notes match your search.";
 		else if (this.label) message = `No notes labelled “${this.label}” here.`;
 		else if (this.scope === "home" && this.store.items.length) {
@@ -198,50 +262,53 @@ class Notebook {
 			onclick: open,
 			onkeydown: event => { if (event.key === "Enter" && event.target === card) open(); },
 		});
+		const pinLabel = note.pinned ? "Remove from Notes home" : "Show on Notes home";
 		card.append(el("button", {
 			type: "button",
 			class: "note-pin",
 			"aria-pressed": String(!!note.pinned),
-			title: note.pinned ? "Remove from Notes home" : "Show on Notes home",
-			"aria-label": note.pinned ? "Remove from Notes home" : "Show on Notes home",
+			title: pinLabel,
+			"aria-label": pinLabel,
 			onclick: event => { event.stopPropagation(); this.store.upsert({ ...note, pinned: !note.pinned }); },
-		}, "📌"));
+		}, icon("pin")));
 		if (note.title) card.append(el("h4", { class: "note-card-title" }, note.title));
 		if (note.type === "list") {
-			const items = note.items || [];
-			const shown = items.slice(0, 8);
-			card.append(el("ul", { class: "note-card-items" }, shown.map(item => el("li", { class: item.done ? "done" : "" },
-				el("input", {
-					type: "checkbox",
-					checked: !!item.done,
-					"aria-label": item.text,
-					onclick: event => event.stopPropagation(),
-					onchange: () => this._toggleItem(note, item.id),
-				}),
-				el("span", {}, item.text)))));
-			if (items.length > shown.length) card.append(el("p", { class: "note-card-more" }, `+ ${items.length - shown.length} more`));
+			const open = (note.items || []).filter(item => !item.done);
+			const doneCount = (note.items || []).length - open.length;
+			const shown = open.slice(0, 8);
+			if (shown.length) {
+				card.append(el("ul", { class: "note-card-items" }, shown.map(item => el("li", {},
+					el("input", {
+						type: "checkbox",
+						"aria-label": item.text,
+						onclick: event => event.stopPropagation(),
+						onchange: () => this.toggleItem(note.id, item.id),
+					}),
+					el("span", {}, item.text,
+						item.calendar && item.due ? el("small", { class: "note-due" }, icon("calendar", 12), formatDue(item.due)) : null)))));
+			}
+			const more = [];
+			if (open.length > shown.length) more.push(`${open.length - shown.length} more`);
+			if (doneCount) more.push(`${doneCount} ticked`);
+			if (more.length) card.append(el("p", { class: "note-card-more" }, "+ " + more.join(", ")));
 		} else if (note.text) {
 			card.append(el("p", { class: "note-card-text" }, note.text));
 		}
-		if ((note.labels || []).length) {
-			card.append(el("div", { class: "note-card-labels" }, note.labels.map(label => el("span", { class: "chip small" }, label))));
-		}
+		const chips = [];
+		if (note.calendar && note.due) chips.push(el("span", { class: "chip small" }, icon("calendar", 12), formatDue(note.due)));
+		chips.push(...(note.labels || []).map(label => el("span", { class: "chip small" }, label)));
+		if (chips.length) card.append(el("div", { class: "note-card-labels" }, chips));
 		return card;
-	}
-
-	_toggleItem(note, itemId) {
-		const items = (note.items || []).map(item => item.id === itemId ? { ...item, done: !item.done } : item);
-		this.store.upsert({ ...note, items });
 	}
 
 	/* ---------- Editor ---------- */
 
 	create(type) {
-		const now = Date.now();
 		// A note created while looking at the home is put on the home, so it doesn't vanish on save.
 		const pinned = this.scope === "home";
 		const labels = this.label ? [this.label] : [];
-		this._edit({ id: crypto.randomUUID(), type, title: "", text: "", items: [], color: "default", labels, pinned, createdAt: now }, true);
+		const items = type === "list" ? [{ id: crypto.randomUUID(), text: "", done: false }] : [];
+		this._edit({ id: crypto.randomUUID(), type, title: "", text: "", items, color: "default", labels, pinned, createdAt: Date.now() }, true);
 	}
 
 	open(id) {
@@ -249,108 +316,269 @@ class Notebook {
 		if (note) this._edit(structuredClone(note), false);
 	}
 
+	/* Switch to the Notes page and open a note there (used by the calendar). */
+	show(id) {
+		location.hash = "#/notes";
+		this.open(id);
+	}
+
+	_part(id) {
+		return document.getElementById(`note-${id}`);
+	}
+
 	_edit(note, isNew) {
 		this.draft = { text: "", items: [], labels: [], color: "default", ...note };
 		this.draftIsNew = isNew;
 		this.draftOriginal = JSON.stringify(this.draft);
-		const isList = this.draft.type === "list";
-		document.getElementById("note-title").value = this.draft.title || "";
-		const text = document.getElementById("note-text");
-		text.value = this.draft.text;
-		text.hidden = isList;
-		document.getElementById("note-items").hidden = !isList;
-		const newItem = document.getElementById("note-new-item");
-		newItem.hidden = !isList;
-		newItem.value = "";
-		document.getElementById("note-labels").value = this.draft.labels.join(", ");
-		document.getElementById("note-label-options").replaceChildren(...this.labels.map(label => el("option", { value: label })));
-		document.getElementById("note-pinned").checked = !!this.draft.pinned;
-		document.getElementById("note-delete").hidden = isNew || isDefaultNote(this.draft);
-		this._renderDraftItems();
-		this._renderDraftColor();
+		this._part("title").value = this.draft.title || "";
+		this._part("labels").value = this.draft.labels.join(", ");
+		this._part("label-options").replaceChildren(...this.labels.map(label => el("option", { value: label })));
+		for (const panel of ["menu", "panel-colors", "panel-labels"]) this._part(panel).hidden = true;
+		this._part("edited").textContent = this.draft.updatedAt
+			? "Edited " + new Date(this.draft.updatedAt).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
+			: "";
+		this._renderDraft();
 		this.dialog.showModal();
-		(isNew && isList ? newItem : isNew ? text : document.getElementById("note-title")).focus();
+		this._autosize();
+		if (!isNew) this._part("title").focus();
+		else if (this.draft.type === "list") this._focusItem(this.draft.items[0].id);
+		else this._part("text").focus();
 	}
 
-	_renderDraftColor() {
-		this.dialog.dataset.color = this.draft.color;
-		document.querySelectorAll("#note-colors button").forEach(button => {
-			button.setAttribute("aria-pressed", String(button.dataset.color === this.draft.color));
+	/* Redraw everything in the editor that depends on the draft's settings. */
+	_renderDraft() {
+		const draft = this.draft;
+		const isList = draft.type === "list";
+		this.dialog.dataset.color = draft.color;
+		const text = this._part("text");
+		text.hidden = isList;
+		if (!isList) text.value = draft.text;
+		this._part("items").hidden = !isList;
+		if (isList) this._renderItems();
+
+		const pin = this._part("pin");
+		pin.setAttribute("aria-pressed", String(!!draft.pinned));
+		pin.title = draft.pinned ? "Remove from Notes home" : "Show on Notes home";
+
+		this._part("when").hidden = !draft.calendar;
+		const [date = "", time = ""] = (draft.due || "").split("T");
+		this._part("date").value = date;
+		this._part("time").value = time;
+		this._part("chips").replaceChildren(...draft.labels.map(label => el("span", { class: "chip small" }, label)));
+
+		const fixed = isDefaultNote(draft);   // the Pomodoro page relies on these two keeping their kind
+		this._part("toggle-list").hidden = fixed;
+		this._part("toggle-list").replaceChildren(icon("checklist"), isList ? "Turn into a plain note" : "Turn into a checklist");
+		this._part("toggle-calendar").replaceChildren(icon("calendar"), draft.calendar ? "Remove note from calendar" : "Add note to calendar");
+		this._part("delete").hidden = this.draftIsNew || fixed;
+		document.querySelectorAll("#note-panel-colors button").forEach(button => {
+			button.setAttribute("aria-pressed", String(button.dataset.color === draft.color));
 		});
+		this._autosize();
 	}
 
-	_renderDraftItems() {
-		const container = document.getElementById("note-items");
-		container.replaceChildren(...this.draft.items.map(item => {
-			const input = el("input", {
-				type: "text",
-				value: item.text,
-				"aria-label": "List item",
-				oninput: () => { item.text = input.value; },
-				onkeydown: event => {
-					if (event.key !== "Enter") return;
+	_autosize() {
+		const text = this._part("text");
+		if (text.hidden) return;
+		text.style.height = "auto";
+		text.style.height = `${text.scrollHeight + 2}px`;
+	}
+
+	_focusItem(id) {
+		const input = this._part("items").querySelector(`[data-item-id="${id}"] input[type="text"]`);
+		if (input) input.focus();
+	}
+
+	/* Unticked entries first, then "+ List item", then the ticked ones - as in Keep. */
+	_renderItems() {
+		const items = this.draft.items;
+		const open = items.filter(item => !item.done);
+		const done = items.filter(item => item.done);
+		this._part("items").replaceChildren(
+			...open.map(item => this._itemRow(item)),
+			el("button", { type: "button", class: "note-add-item", onclick: () => this._addItem() }, icon("add"), "List item"),
+			done.length ? el("div", { class: "note-done-divider" }, `${done.length} ticked ${done.length === 1 ? "item" : "items"}`) : null,
+			...done.map(item => this._itemRow(item)));
+	}
+
+	_addItem(after) {
+		const items = this.draft.items;
+		const item = { id: crypto.randomUUID(), text: "", done: false };
+		// With no entry to follow, the new one goes at the end of the unticked entries.
+		const anchor = after || [...items].reverse().find(other => !other.done);
+		items.splice(anchor ? items.indexOf(anchor) + 1 : 0, 0, item);
+		this._renderItems();
+		this._focusItem(item.id);
+	}
+
+	_itemRow(item) {
+		const input = el("input", {
+			type: "text",
+			value: item.text,
+			placeholder: "List item",
+			"aria-label": "List item",
+			oninput: () => { item.text = input.value; },
+			onkeydown: event => {
+				if (event.key === "Enter") {
 					event.preventDefault();
-					document.getElementById("note-new-item").focus();
-				},
-			});
-			const row = el("div", { class: "note-item" + (item.done ? " done" : "") },
+					this._addItem(item);
+				} else if (event.key === "Backspace" && !input.value && this.draft.items.length > 1) {
+					event.preventDefault();
+					const index = this.draft.items.indexOf(item);
+					const previous = this.draft.items[index - 1] || this.draft.items[index + 1];
+					this.draft.items.splice(index, 1);
+					this._renderItems();
+					this._focusItem(previous.id);
+				}
+			},
+		});
+		const calendarLabel = item.calendar ? "Remove entry from calendar" : "Add entry to calendar";
+		const row = el("div", { class: "note-item" + (item.done ? " done" : ""), dataset: { itemId: item.id } },
+			el("div", { class: "note-item-main" },
 				el("input", {
 					type: "checkbox",
 					checked: !!item.done,
-					"aria-label": "Done",
-					onchange: event => { item.done = event.target.checked; row.classList.toggle("done", item.done); },
+					"aria-label": "Ticked",
+					onchange: event => { item.done = event.target.checked; this._renderItems(); },
 				}),
 				input,
 				el("button", {
-					type: "button", class: "icon-button", title: "Remove item", "aria-label": "Remove item",
+					type: "button",
+					class: "icon-button note-item-calendar",
+					"aria-pressed": String(!!item.calendar),
+					title: calendarLabel,
+					"aria-label": calendarLabel,
+					onclick: () => {
+						if (item.calendar) {
+							delete item.calendar;
+							delete item.due;
+						} else {
+							item.calendar = true;
+							item.due = item.due || toYMD(new Date());
+						}
+						this._renderItems();
+						this._focusItem(item.id);
+					},
+				}, icon("calendar", 16)),
+				el("button", {
+					type: "button", class: "icon-button note-item-remove", title: "Delete entry", "aria-label": "Delete entry",
 					onclick: () => {
 						this.draft.items = this.draft.items.filter(other => other !== item);
-						this._renderDraftItems();
+						this._renderItems();
 					},
-				}, "×"));
-			return row;
-		}));
+				}, icon("close", 16))));
+		// The date and time only appear once the entry is on the calendar.
+		if (item.calendar) {
+			const [dueDate = "", dueTime = ""] = (item.due || "").split("T");
+			const date = el("input", { type: "date", value: dueDate, "aria-label": "Date" });
+			const time = el("input", { type: "time", value: dueTime, "aria-label": "Time (optional)" });
+			const update = () => { item.due = composeDue(date.value, time.value); };
+			date.addEventListener("input", update);
+			time.addEventListener("input", update);
+			row.append(el("div", { class: "note-item-when" }, icon("calendar", 14), date, time));
+		}
+		return row;
 	}
 
-	_addDraftItem(keepTyping = false) {
-		const input = document.getElementById("note-new-item");
-		const text = input.value.trim();
-		if (!text) return;
-		this.draft.items.push({ id: crypto.randomUUID(), text, done: false });
-		input.value = "";
-		this._renderDraftItems();
-		if (keepTyping) input.focus();
+	_convert() {
+		const draft = this.draft;
+		if (draft.type === "list") {
+			// As in Keep, going back to plain text keeps the entries' text, one per line.
+			draft.text = draft.items.map(item => item.text.trim()).filter(Boolean).join("\n");
+			draft.items = [];
+			draft.type = "text";
+		} else {
+			draft.items = draft.text.split("\n").map(line => line.trim()).filter(Boolean)
+				.map(text => ({ id: crypto.randomUUID(), text, done: false }));
+			if (!draft.items.length) draft.items.push({ id: crypto.randomUUID(), text: "", done: false });
+			draft.text = "";
+			draft.type = "list";
+		}
+		this._renderDraft();
+		if (draft.type === "list") this._focusItem(draft.items[draft.items.length - 1].id);
+		else this._part("text").focus();
 	}
 
 	_bindEditor() {
-		document.getElementById("note-colors").replaceChildren(...NOTE_COLORS.map(color => el("button", {
+		this._part("pin").append(icon("pin", 20));
+		this._part("color-button").append(icon("palette", 20));
+		this._part("label-button").append(icon("label", 20));
+		this._part("settings").append(icon("more", 20));
+		this._part("when-remove").append(icon("close", 16));
+		this._part("when").prepend(icon("calendar", 16));
+		this._part("panel-colors").replaceChildren(...NOTE_COLORS.map(color => el("button", {
 			type: "button",
 			class: "swatch",
 			dataset: { color },
 			title: color[0].toUpperCase() + color.slice(1),
 			"aria-label": color,
-			onclick: () => { this.draft.color = color; this._renderDraftColor(); },
+			onclick: () => { this.draft.color = color; this._renderDraft(); },
 		})));
-		const newItem = document.getElementById("note-new-item");
-		newItem.addEventListener("keydown", event => {
-			if (event.key !== "Enter") return;
-			event.preventDefault();
-			this._addDraftItem(true);
+
+		this._part("title").addEventListener("input", event => { this.draft.title = event.target.value; });
+		this._part("text").addEventListener("input", event => {
+			this.draft.text = event.target.value;
+			this._autosize();
 		});
-		newItem.addEventListener("blur", () => this._addDraftItem());
-		document.getElementById("note-form").addEventListener("submit", event => {
-			event.preventDefault();
-			this.dialog.close();
+		this._part("labels").addEventListener("input", event => {
+			this.draft.labels = parseLabels(event.target.value);
+			this._renderDraft();
 		});
-		document.getElementById("note-delete").addEventListener("click", () => {
+		this._part("pin").addEventListener("click", () => {
+			this.draft.pinned = !this.draft.pinned;
+			this._renderDraft();
+		});
+		const updateDue = () => { this.draft.due = composeDue(this._part("date").value, this._part("time").value); };
+		this._part("date").addEventListener("input", updateDue);
+		this._part("time").addEventListener("input", updateDue);
+		const setCalendar = on => {
+			this.draft.calendar = on;
+			if (on) this.draft.due = this.draft.due || toYMD(new Date());
+			else delete this.draft.due;
+			this._renderDraft();
+			if (on) this._part("date").focus();
+		};
+		this._part("when-remove").addEventListener("click", () => setCalendar(false));
+
+		// Bottom bar: colour and label panels, and the options menu.
+		const togglePanel = id => {
+			for (const panel of ["panel-colors", "panel-labels"]) this._part(panel).hidden = panel !== id || !this._part(panel).hidden;
+			if (id === "panel-labels" && !this._part(id).hidden) this._part("labels").focus();
+		};
+		this._part("color-button").addEventListener("click", () => togglePanel("panel-colors"));
+		this._part("label-button").addEventListener("click", () => togglePanel("panel-labels"));
+		const menu = this._part("menu");
+		const setMenu = open => {
+			menu.hidden = !open;
+			this._part("settings").setAttribute("aria-expanded", String(open));
+		};
+		this._part("settings").addEventListener("click", event => {
+			event.stopPropagation();
+			setMenu(menu.hidden);
+		});
+		this._part("toggle-list").addEventListener("click", () => this._convert());
+		this._part("toggle-calendar").addEventListener("click", () => setCalendar(!this.draft.calendar));
+		this._part("delete").addEventListener("click", () => {
 			const id = this.draft.id;
 			this.draft = null;
 			this.dialog.close();
 			this.store.remove(id);
 		});
-		// Clicking the backdrop closes (and saves), like Keep.
-		this.dialog.addEventListener("click", event => { if (event.target === this.dialog) this.dialog.close(); });
-		// Every way of closing the editor (Done, Escape, backdrop) saves the note.
+		this.dialog.addEventListener("click", event => {
+			setMenu(false);   // choosing an option, or clicking anywhere else, closes the menu
+			if (event.target === this.dialog) this.dialog.close();   // the backdrop closes (and saves), like Keep
+		});
+		this.dialog.addEventListener("keydown", event => {
+			if (event.key === "Escape" && !menu.hidden) {
+				event.preventDefault();
+				setMenu(false);
+			}
+		});
+		this._part("form").addEventListener("submit", event => {
+			event.preventDefault();
+			this.dialog.close();
+		});
+		// Every way of closing the editor (Close, Escape, backdrop) saves the note.
 		this.dialog.addEventListener("close", () => this._saveDraft());
 	}
 
@@ -358,23 +586,24 @@ class Notebook {
 		const draft = this.draft;
 		if (!draft) return;
 		this.draft = null;
-		this._pendingItem(draft);
-		draft.title = document.getElementById("note-title").value.trim();
-		if (draft.type === "list") draft.items = draft.items.filter(item => item.text.trim());
-		else draft.text = document.getElementById("note-text").value;
-		draft.labels = parseLabels(document.getElementById("note-labels").value);
-		draft.pinned = document.getElementById("note-pinned").checked;
+		draft.title = (draft.title || "").trim();
+		if (draft.type === "list") {
+			draft.text = "";
+			draft.items = draft.items.filter(item => item.text.trim());
+			// An entry ticked for the calendar but left without a date isn't on it.
+			for (const item of draft.items) if (item.calendar && !item.due) delete item.calendar;
+		} else {
+			draft.items = [];
+		}
+		if (!draft.calendar || !draft.due) {
+			delete draft.calendar;
+			delete draft.due;
+		}
 		if (isBlankNote(draft) && !isDefaultNote(draft)) {
 			if (!this.draftIsNew) this.store.remove(draft.id);
 			return;
 		}
 		if (JSON.stringify(draft) !== this.draftOriginal) this.store.upsert(draft);
-	}
-
-	/* Text still sitting in the "+ List item" box counts as an item. */
-	_pendingItem(draft) {
-		const text = document.getElementById("note-new-item").value.trim();
-		if (draft.type === "list" && text) draft.items.push({ id: crypto.randomUUID(), text, done: false });
 	}
 }
 

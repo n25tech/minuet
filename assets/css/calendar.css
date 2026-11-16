@@ -159,6 +159,29 @@
   color: var(--text-main);
 }
 
+/* Whole notes on the calendar: a small card in the note's colour. */
+.cal-chip.note,
+.cal-block.note {
+  flex-direction: row;
+  align-items: center;
+  gap: 0.3rem;
+  border: 1px solid var(--border);
+  background-color: var(--note-bg, var(--bg-card));
+  color: var(--text-main);
+}
+
+.cal-chip.note:hover,
+.cal-block.note:hover {
+  background-color: var(--note-bg, var(--bg-card));
+  filter: brightness(0.95);
+}
+
+.cal-chip.note span:last-child,
+.cal-block.note span:last-child {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .cal-chip.todo span,
 .cal-block.todo span {
   overflow: hidden;

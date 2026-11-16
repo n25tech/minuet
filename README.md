@@ -6,12 +6,14 @@ A productivity app written in vanilla js.
 ### Features:
 
 * **Pomodoro** (`#/pomodoro`) - pomodoro timer, to-do list and distraction diary.
-  A to-do can be given a date and (optionally) a time, and ticked "Add to calendar" to show up on the calendar.
+  Tick "Add to calendar" on a new to-do to give it a date and (optionally) a time.
   The to-do list and the diary are two default notes labelled `pomodoro`, so they can also be opened under Notes.
-* **Notes** (`#/notes`) - Keep-style notes and checklists with colours, labels and search.
-  The Notes home only shows the notes you pin to it; "All notes" lists everything.
+* **Notes** (`#/notes`) - Keep-style notes with colours, labels and search. The options menu at the bottom
+  of a note turns it into a checklist (and back) or adds the note to the calendar; each checklist entry
+  can also be added to the calendar on its own. The Notes home only shows the notes you pin to it;
+  "All notes" lists everything.
 * **Calendar** (`#/calendar`) - month, week and day views, all-day and repeating events
-  (daily / weekly / monthly / yearly), plus your dated to-dos.
+  (daily / weekly / monthly / yearly), plus the notes and checklist entries you added to the calendar.
 * Google sign-in to sync everything across devices; signed out, it all lives in localStorage.
 
 Dates and times are stored as local wall-clock values with no time zone.
