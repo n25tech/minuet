@@ -5,6 +5,9 @@
  *   { id, text, done, due: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM" (optional), calendar: true (optional) }
  * An item with a due date and calendar: true is shown on the Calendar (see calendar.js), which reads
  * this list directly - the to-do is the single source of truth, nothing is copied.
+ *
+ * The to-do being worked on (picked next to the timer) is remembered on this device only,
+ * in localStorage under "pomodoro_task".
  */
 class TodoList {
 	constructor(uiContainer = "todolist-table-container", uiItemInput = "new-item-input") {
@@ -13,6 +16,8 @@ class TodoList {
 	}
 
 	init() {
+		const select = document.getElementById("pomodoro-task");
+		if (select) select.addEventListener("change", () => this.setCurrent(select.value));
 		document.addEventListener("minuet:notes", () => this.displayList());
 		this.displayList();
 		return this;
@@ -47,7 +52,33 @@ class TodoList {
 		await saved;
 	}
 
+	/* Id of the to-do being worked on, or "" for none. */
+	get currentId() {
+		return localStorage.getItem("pomodoro_task") || "";
+	}
+
+	setCurrent(id) {
+		if (id) localStorage.setItem("pomodoro_task", id);
+		else localStorage.removeItem("pomodoro_task");
+		this.displayList();
+	}
+
+	/* The "Working on" picker lists the to-dos that are still open. */
+	_renderCurrent() {
+		const select = document.getElementById("pomodoro-task");
+		if (!select) return;
+		const open = this.list.filter(item => !item.done);
+		const current = open.some(item => item.id === this.currentId) ? this.currentId : "";
+		select.replaceChildren(
+			el("option", { value: "" }, open.length ? "Nothing selected" : "No open to-dos"),
+			...open.map(item => el("option", { value: item.id, selected: item.id === current }, item.text)));
+		select.value = current;
+	}
+
 	async toggleComplete(id) {
+		// Ticking off the to-do being worked on means it is no longer the current one.
+		const item = this.list.find(item => item.id === id);
+		if (item && !item.done && id === this.currentId) localStorage.removeItem("pomodoro_task");
 		await notebook.toggleItem(TODO_NOTE_ID, id);
 	}
 
@@ -65,9 +96,11 @@ class TodoList {
 		const containerInstance = document.getElementById(this.uiContainer);
 		if (!containerInstance) return;
 		containerInstance.innerHTML = '';
+		this._renderCurrent();
+		const current = this.currentId;
 		this.list.forEach((item) => {
 			const checkbox = el("input", { type: "checkbox", checked: !!item.done, onchange: () => this.toggleComplete(item.id) });
-			const row = el("label", { class: "todo-item" + (item.done ? " complete" : "") },
+			const row = el("label", { class: "todo-item" + (item.done ? " complete" : "") + (!item.done && item.id === current ? " current" : ""), title: !item.done && item.id === current ? "Working on this now" : undefined },
 				checkbox,
 				el("span", { class: "todo-text" }, item.text));
 			containerInstance.appendChild(row);

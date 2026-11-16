@@ -140,6 +140,27 @@
   font-variant-numeric: tabular-nums;
 }
 
+.pomodoro-task {
+  margin-top: 0.75rem;
+  text-align: left;
+}
+
+.pomodoro-task select {
+  width: 100%;
+  max-width: 20rem;
+  text-overflow: ellipsis;
+}
+
+/* The to-do picked as "Working on". */
+.todo-item.current {
+  margin: 0 -0.4rem;
+  padding: 0.3rem 0.4rem 0.2rem;
+  border-left: 3px solid var(--btn-primary-strong);
+  border-radius: 4px;
+  background-color: var(--mint-light);
+  font-weight: 600;
+}
+
 #notes-area {
   width: 100%;
   min-height: 16rem;
