@@ -23,7 +23,7 @@ function loadNotes({ local, server, onPost, storage = new Map(), postStatus }) {
     auth.sessionExpired = () => { auth.expired++; auth.user = null; };
     const posts = [];
     const sandbox = {
-        console, setTimeout, clearTimeout, structuredClone, Response, JSON,
+        console, setTimeout, clearTimeout, setInterval: () => 0, structuredClone, Response, JSON,
         window: {
             APP_CONFIG: { BACKEND_API_URL: '' },
             minuetAuth: auth,
@@ -271,7 +271,7 @@ test('Sign out waits for unsaved notes to reach the server before ending the ses
     const textarea = { value: '', addEventListener: (type, fn) => { listeners[type] = fn; }, setSelectionRange() {} };
     let confirmed = 0;
     const sandbox = {
-        console, CustomEvent, setTimeout, clearTimeout, structuredClone,
+        console, CustomEvent, setTimeout, clearTimeout, setInterval: () => 0, structuredClone,
         window: { APP_CONFIG: { BACKEND_API_URL: '' }, addEventListener() {} },
         document: {
             getElementById: id => id === 'notes-area' ? textarea : null,

@@ -42,11 +42,11 @@ function toast(lines) {
 }
 
 /*
- * The app's three features (Pomodoro, Notes, Calendar) are sections of one page, switched by
- * the URL hash (#/pomodoro, #/notes, #/calendar). All of them stay in the DOM so the timer
+ * The app's features (Pomodoro, Notes, Calendar) and its settings are sections of one page, switched by
+ * the URL hash (#/pomodoro, #/notes, #/calendar, #/settings). All of them stay in the DOM so the timer
  * keeps running while another feature is open. A "minuet:view" event announces each switch.
  */
-const APP_VIEWS = ["pomodoro", "notes", "calendar"];
+const APP_VIEWS = ["pomodoro", "notes", "calendar", "settings"];
 
 function currentView() {
     const name = location.hash.replace(/^#\/?/, "");

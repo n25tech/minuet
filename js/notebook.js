@@ -14,21 +14,6 @@
  */
 
 /*
- * The Pomodoro page's to-do list and distraction diary are two default notes, labelled
- * "pomodoro" (see todolist.js and diary.js). They have fixed ids so every device agrees on
- * which notes they are, and they can be edited like any other note but not deleted.
- */
-const POMODORO_LABEL = "pomodoro";
-const TODO_NOTE_ID = "pomodoro-todo";
-const DIARY_NOTE_ID = "pomodoro-diary";
-const isDefaultNote = note => note.id === TODO_NOTE_ID || note.id === DIARY_NOTE_ID;
-
-function newDefaultNote(id) {
-	const note = { id, title: "", text: "", items: [], color: "default", labels: [POMODORO_LABEL], pinned: false, createdAt: Date.now() };
-	return id === TODO_NOTE_ID ? { ...note, type: "list", title: "To-do list" } : { ...note, type: "text", title: "Distraction diary" };
-}
-
-/*
  * Before the to-do list and diary became notes they were stored on their own
  * (/api/storage/todolist and /api/storage/notes, or localStorage when signed out).
  * Reads whatever is there so it can be carried into the default notes; throws when
@@ -51,13 +36,7 @@ async function loadLegacyPomodoroData() {
 		if (Array.isArray(remoteList) && remoteList.length) list = remoteList;
 		if (remoteText) text = remoteText;
 	}
-	const items = (Array.isArray(list) ? list : []).filter(item => item && typeof item.text === "string").map(item => ({
-		id: String(item.id || crypto.randomUUID()),
-		text: item.text,
-		done: !!item.complete,
-		...(item.due ? { due: item.due } : {}),
-		...(item.calendar ? { calendar: true } : {}),
-	}));
+	const items = legacyTodoItems(list, () => crypto.randomUUID());
 	return { items, text: typeof text === "string" ? text : "" };
 }
 
@@ -91,29 +70,9 @@ function formatDue(due) {
 	return date.toLocaleString([], options);
 }
 
-const composeDue = (date, time) => date ? (time ? `${date}T${time}` : date) : "";
-
-// Everything that puts a note or an entry on the calendar.
-const TASK_FIELDS = ["calendar", "due", "repeat", "status", "exdates", "moves"];
+// The task fields and helpers (clearTask, setRepeat, noteTasks, ...) live in tasks-core.js.
 const REPEAT_OPTIONS = [["", "Does not repeat"], ["daily", "Repeats daily"], ["weekly", "Repeats weekly"], ["monthly", "Repeats monthly"], ["yearly", "Repeats yearly"]];
 const STATUS_OPTIONS = [["", "Suggested (can be moved)"], ["committed", "Committed (fixed time)"]];
-
-function clearTask(source) {
-	for (const field of TASK_FIELDS) delete source[field];
-}
-
-function setRepeat(source, freq) {
-	if (freq) source.repeat = { freq, until: null };
-	else delete source.repeat;
-	// Skipped and moved occurrences belonged to the old pattern.
-	delete source.exdates;
-	delete source.moves;
-}
-
-function setStatus(source, status) {
-	if (status === "committed") source.status = "committed";
-	else delete source.status;
-}
 
 /* When a note or entry is on the calendar, in a few words: "Tue, Nov 17, 3:00 PM · weekly · committed". */
 function taskSummary(source) {
@@ -126,19 +85,6 @@ function taskSummary(source) {
 function optionSelect(options, value, label, onchange) {
 	return el("select", { "aria-label": label, onchange: event => onchange(event.target.value) },
 		options.map(([optionValue, text]) => el("option", { value: optionValue, selected: optionValue === value }, text)));
-}
-
-/* A note or entry after the calendar moved it, took it off the calendar, or made it suggested (see settleSchedule). */
-function rescheduled(source, patch, demote) {
-	const next = { ...source };
-	if (demote) delete next.status;
-	if (patch && patch.removed) clearTask(next);
-	else if (patch) {
-		if (patch.start) next.due = patch.start;
-		if (patch.moves) next.moves = patch.moves;
-		if (patch.exdates) next.exdates = patch.exdates;
-	}
-	return next;
 }
 
 function noteMatches(note, query) {
@@ -158,11 +104,6 @@ function parseLabels(text) {
 
 function isBlankNote(note) {
 	return !note.title.trim() && !note.text.trim() && !(note.items || []).some(item => item.text.trim());
-}
-
-/* What a note is called where there is only room for one line (calendar entries). */
-function noteHeading(note) {
-	return note.title || (note.text || "").trim().split("\n")[0] || ((note.items || [])[0] || {}).text || "(Untitled note)";
 }
 
 class Notebook {
@@ -254,51 +195,9 @@ class Notebook {
 		return this.store.upsert({ ...note, items });
 	}
 
-	/*
-	 * Everything the notes put on the calendar, as tasks in the calendar's own shape (see calendar-core.js):
-	 * whole notes that were added to it (id "note:<note id>") and single checklist entries that were
-	 * (id "item:<note id>:<entry id>", with `item` set). A timed one takes half an hour.
-	 */
+	/* Everything the notes put on the calendar, as calendar tasks (see noteTasks in tasks-core.js). */
 	calendarEntries(notes = this.store.items) {
-		const tasks = [];
-		const add = (id, note, item, title, source) => {
-			const timed = source.due.includes("T");
-			const start = parseLocal(source.due);
-			if (Number.isNaN(start.getTime())) return;
-			tasks.push({
-				id, note, item, title,
-				allDay: !timed,
-				start: source.due,
-				end: timed ? toLocalISO(new Date(start.getTime() + 30 * 60 * 1000)) : source.due,
-				repeat: source.repeat || null,
-				exdates: source.exdates,
-				moves: source.moves,
-				status: source.status,
-			});
-		};
-		for (const note of notes) {
-			if (note.calendar && note.due) add(`note:${note.id}`, note, null, noteHeading(note), note);
-			if (note.type !== "list") continue;
-			for (const item of note.items || []) {
-				if (item.calendar && item.due) add(`item:${note.id}:${item.id}`, note, item, item.text, item);
-			}
-		}
-		return tasks;
-	}
-
-	/* Store the outcome of settleSchedule for the tasks that live in notes. */
-	applySchedule(patches, demotedIds) {
-		const touched = id => patches.has(id) || demotedIds.has(id);
-		const changed = [];
-		for (const note of this.store.items) {
-			const noteId = `note:${note.id}`;
-			const itemId = item => `item:${note.id}:${item.id}`;
-			if (!touched(noteId) && !(note.items || []).some(item => touched(itemId(item)))) continue;
-			const next = touched(noteId) ? rescheduled(note, patches.get(noteId), demotedIds.has(noteId)) : { ...note };
-			next.items = (note.items || []).map(item => touched(itemId(item)) ? rescheduled(item, patches.get(itemId(item)), demotedIds.has(itemId(item))) : item);
-			changed.push(next);
-		}
-		if (changed.length) this.store.upsert(...changed);
+		return noteTasks(notes);
 	}
 
 	/* ---------- Grid ---------- */

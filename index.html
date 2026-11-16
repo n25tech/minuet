@@ -9,21 +9,24 @@
   <link rel="icon" type="image/x-icon" href="assets/images/favicon.svg" />
   <title class="timer-display">Minuet: a minimalist productivity app</title>
   <script src="js/config.js?v=2" defer></script>
-  <script src="js/app.js?v=6" defer></script>
+  <script src="js/app.js?v=7" defer></script>
   <script src="js/pomodoro.js?v=2" defer></script>
   <script src="js/signin.js?v=4" defer></script>
-  <script src="js/sync.js?v=4" defer></script>
+  <script src="js/sync.js?v=5" defer></script>
   <script src="js/calendar-core.js?v=2" defer></script>
-  <script src="js/notebook.js?v=3" defer></script>
+  <script src="js/tasks-core.js?v=1" defer></script>
+  <script src="js/notebook.js?v=4" defer></script>
   <script src="js/todolist.js?v=8" defer></script>
   <script src="js/diary.js?v=1" defer></script>
-  <script src="js/calendar.js?v=3" defer></script>
+  <script src="js/calendar.js?v=4" defer></script>
+  <script src="js/settings.js?v=1" defer></script>
   <link rel="stylesheet" href="assets/css/styles.css?v=4">
   <link rel="stylesheet" href="assets/css/light_theme.css?v=3">
   <link rel="stylesheet" href="assets/css/dark_theme.css?v=2">
-  <link rel="stylesheet" href="assets/css/main_page.css?v=6">
+  <link rel="stylesheet" href="assets/css/main_page.css?v=7">
   <link rel="stylesheet" href="assets/css/notebook.css?v=3">
   <link rel="stylesheet" href="assets/css/calendar.css?v=3">
+  <link rel="stylesheet" href="assets/css/settings.css?v=1">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
@@ -54,6 +57,7 @@
           <a href="#/pomodoro" data-nav="pomodoro">Pomodoro</a>
           <a href="#/notes" data-nav="notes">Notes</a>
           <a href="#/calendar" data-nav="calendar">Calendar</a>
+          <a href="#/settings" data-nav="settings" aria-label="Settings"><span class="nav-icon" aria-hidden="true">⚙</span><span class="nav-text">Settings</span></a>
         </div>
         <div id="navbar-signin" class="navbar-signin">
           <button id="signin-toggle" class="signin-toggle" onclick="toggleSigninMenu()">Sign In ▾</button>
@@ -139,6 +143,60 @@
         <!-- CALENDAR -->
         <section class="view view-calendar" data-view="calendar" hidden>
           <div id="calendar-root" class="calendar"></div>
+        </section>
+
+        <!-- SETTINGS -->
+        <section class="view view-settings" data-view="settings" hidden>
+          <div id="settings-signed-out" class="panel settings-card">
+            <h3>Settings</h3>
+            <p>Sign in to set your time zone and to let an AI assistant work with your notes and calendar. These need an account, because the assistant reaches Minuet through the server.</p>
+          </div>
+          <div id="settings-signed-in" hidden>
+            <div class="panel settings-card">
+              <h3>Time zone</h3>
+              <p>Times in Minuet are stored as you type them, with no time zone. Assistants use this setting to know what “now” and “tomorrow at 3” mean for you.</p>
+              <select id="settings-timezone" aria-label="Time zone"></select>
+              <small id="settings-timezone-note"></small>
+              <p id="settings-timezone-error" class="form-error" role="alert" hidden></p>
+            </div>
+
+            <div class="panel settings-card">
+              <h3>AI access</h3>
+              <p>An access token lets an AI assistant (through the Model Context Protocol) read and change your notes, to-dos and calendar, within the level you choose. You can revoke a token at any time.</p>
+              <div id="settings-new-token" class="settings-new-token" hidden></div>
+              <div id="settings-tokens" class="settings-list"></div>
+              <form id="settings-token-form">
+                <label class="field">Name, so you recognise it later
+                  <input type="text" id="settings-token-name" maxlength="60" required placeholder="e.g. Claude on my phone">
+                </label>
+                <fieldset class="levels">
+                  <legend>What it may do</legend>
+                  <div id="settings-levels" class="levels"></div>
+                </fieldset>
+                <label class="field">Expires
+                  <select id="settings-token-expiry">
+                    <option value="30">In 30 days</option>
+                    <option value="90" selected>In 90 days</option>
+                    <option value="365">In a year</option>
+                    <option value="0">Never</option>
+                  </select>
+                </label>
+                <button type="submit" class="primary">Create token</button>
+              </form>
+              <p id="settings-token-error" class="form-error" role="alert" hidden></p>
+            </div>
+
+            <div class="panel settings-card">
+              <div class="settings-head">
+                <h3>Changes made with tokens</h3>
+                <span class="spacer"></span>
+                <button type="button" id="settings-history-refresh" class="quiet">Refresh</button>
+              </div>
+              <p>Everything an assistant changed, newest first. Undo puts the affected items back to how they were before that change.</p>
+              <div id="settings-history" class="settings-list"></div>
+              <p id="settings-history-error" class="form-error" role="alert" hidden></p>
+            </div>
+          </div>
         </section>
       </main>
 

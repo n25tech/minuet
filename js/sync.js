@@ -228,8 +228,11 @@ class SyncedDoc {
 /*
  * Keeps a document in step with sign-in state and other devices:
  * loads once the session is known, reloads on sign-in/out, and refreshes
- * whenever the tab becomes visible again.
+ * whenever the tab becomes visible again and every half minute while it is
+ * (changes also arrive from the server itself, when an assistant makes them).
  */
+const REFRESH_INTERVAL_MS = 30 * 1000;
+
 function bindSyncedDoc(doc, onLoaded) {
 	window.minuetAuth.docs.push(doc);
 	const reload = async () => onLoaded(await doc.load());
@@ -239,6 +242,9 @@ function bindSyncedDoc(doc, onLoaded) {
 		if (document.visibilityState === "visible") doc.refresh();
 	});
 	window.addEventListener("focus", () => doc.refresh());
+	setInterval(() => {
+		if (document.visibilityState === "visible") doc.refresh();
+	}, REFRESH_INTERVAL_MS);
 }
 
 /*

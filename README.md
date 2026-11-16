@@ -23,6 +23,29 @@ calendar if the day is full). All-day tasks never clash.
 
 Dates and times are stored as local wall-clock values with no time zone.
 
+### AI access (MCP server)
+
+Minuet has a [Model Context Protocol](https://modelcontextprotocol.io) server at `/api/mcp`, so an AI assistant
+can read and change your notes, to-dos and calendar and help with scheduling.
+
+1. Sign in, open **Settings**, check your time zone, and create an access token.
+2. Give the assistant the server address and the token. Either send the token as
+   `Authorization: Bearer mnt_...`, or use the address with `?token=mnt_...` for assistants that only take a URL.
+   For Claude Code: `claude mcp add --transport http minuet https://minuet.n25tech.com/api/mcp --header "Authorization: Bearer mnt_..."`
+
+A token has one of three access levels:
+
+* **View only** (`read`) - see notes, to-dos and the calendar, and find free time.
+* **View and suggest** (`read`, `suggest`) - also add and change notes, to-dos and *suggested* tasks.
+* **Full control** (`read`, `suggest`, `manage`) - also commit tasks to fixed times, change committed tasks, delete, and undo.
+
+Changes made with a token go through the same suggested/committed rules as the app, never overwrite edits
+from your devices (they use the same versioned saves), and are listed under Settings with an **Undo**.
+Tokens are stored hashed, can expire, and can be revoked at any time.
+
+The scheduling rules live in `js/calendar-core.js` and `js/tasks-core.js`. `npm run build` copies them into
+`functions/api/_lib/core.js` for the server; that generated file is committed, and a test fails if it is stale.
+
 ### Future Ideas:
 * White noise machine
 

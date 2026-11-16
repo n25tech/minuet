@@ -39,6 +39,12 @@
   border-top: 3px solid transparent;
 }
 
+/* Settings shows as a gear where there is no room for the word (see the small-screen rules). */
+.nav-icon {
+  display: none;
+  font-size: 1.15rem;
+}
+
 .nav-tabs a:hover {
   background-color: var(--bg-hover);
 }
@@ -300,12 +306,45 @@ button.todo-due:hover {
     display: none;
   }
 
+  /* Four tabs plus the account button have to fit a phone: tighter tabs, a gear for Settings,
+     and the account shown as its status dot. If it still doesn't fit, the tabs scroll sideways. */
+  .nav-tabs {
+    flex: 1;
+    min-width: 0;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
   .nav-tabs a {
-    padding: 0 0.5rem;
+    flex: none;
+    padding: 0 0.45rem;
+    font-size: 0.95rem;
+  }
+
+  .nav-icon {
+    display: inline;
+  }
+
+  .nav-text {
+    display: none;
+  }
+
+  .navbar-signin {
+    flex: none;
+  }
+
+  .signin-toggle {
+    padding: 0.35rem 0.4rem;
+    white-space: nowrap;
   }
 
   .signin-toggle.signed-in .signin-label {
-    max-width: 6rem;
+    display: none;
+  }
+
+  .signin-menu {
+    max-width: calc(100vw - 1.5rem);
   }
 
   .view {

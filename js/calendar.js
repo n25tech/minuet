@@ -499,7 +499,7 @@ const calendarView = new CalendarView().init();
 const taskTitle = task => task.title || "(No title)";
 
 /*
- * Apply the suggested/committed rules (resolveSchedule in calendar-core.js) after the tasks
+ * Apply the suggested/committed rules (settleTasks in tasks-core.js) after the tasks
  * `changedIds` were saved: suggested tasks under a committed one are moved or taken off the
  * calendar, and a committed task that overlaps another committed one becomes suggested.
  * Says what it did in a toast.
@@ -507,20 +507,18 @@ const taskTitle = task => task.title || "(No title)";
 function settleSchedule(changedIds) {
 	if (!changedIds.length) return;
 	const store = calendarView.store;
-	const result = resolveSchedule([...store.items, ...notebook.calendarEntries()], changedIds);
-	if (!result.demoted.length && !result.patches.size) return;
-	const demotedIds = new Set(result.demoted.map(({ task }) => task.id));
+	const result = settleTasks(store.items, notebook.store.items, changedIds);
+	if (!result.demoted.length && !result.moved.length) return;
 
-	const changed = [];
-	const removed = [];
-	for (const event of store.items) {
-		const patch = result.patches.get(event.id);
-		if (patch && patch.removed) removed.push(event.id);
-		else if (patch || demotedIds.has(event.id)) changed.push({ ...event, ...patch, ...(demotedIds.has(event.id) ? { status: "suggested" } : {}) });
-	}
-	if (changed.length) store.upsert(...changed);
+	// settleTasks hands back the same object for anything it left alone.
+	const before = new Set([...store.items, ...notebook.store.items]);
+	const kept = new Set(result.events.map(event => event.id));
+	const changedEvents = result.events.filter(event => !before.has(event));
+	const changedNotes = result.notes.filter(note => !before.has(note));
+	const removed = store.items.filter(event => !kept.has(event.id)).map(event => event.id);
+	if (changedEvents.length) store.upsert(...changedEvents);
 	removed.forEach(id => store.remove(id));
-	notebook.applySchedule(result.patches, demotedIds);
+	if (changedNotes.length) notebook.store.upsert(...changedNotes);
 
 	const time = date => date.toLocaleString([], { weekday: "short", day: "numeric", month: "short", hour: "numeric", minute: "2-digit" });
 	const lines = result.demoted.map(({ task, blocker }) =>
