@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { fetchTodoListForUser, saveTodoListForUser } from '../functions/api/_db_d1/todolist.js';
 import { fetchNotesForUser, saveNotesForUser } from '../functions/api/_db_d1/notes.js';
-import { createSession, getUserIdFromSession } from '../functions/api/_sessions_kv/sessions.js';
+import { createSession, getUserIdFromSession, renewSession } from '../functions/api/_lib/sessions.js';
 import * as todolistApi from '../functions/api/storage/todolist.js';
 import * as notesApi from '../functions/api/storage/notes.js';
 import * as notebookApi from '../functions/api/storage/notebook.js';
@@ -32,27 +32,74 @@ test('TodoList backend storage and retrieval', async () => {
     assert.deepStrictEqual(fetched.list, newList);
 });
 
+const cookieRequest = cookie => new Request('http://localhost/api/storage/todolist', { headers: cookie ? { Cookie: cookie } : {} });
+const DAY = 24 * 60 * 60 * 1000;
+
 test('Session creation and retrieval', async () => {
-    const kv = new MockKVNamespace();
-    const context = {
-        env: { sessions: kv }
-    };
-    const userId = 'user-abc';
-
-    const { sessionId } = await createSession(context, userId);
+    const env = { db: new SqliteD1Database(), sessions: new MockKVNamespace() };
+    env.db.addUser('user-abc');
+    const { sessionId, ttl } = await createSession({ env }, 'user-abc');
     assert.ok(sessionId);
+    assert.strictEqual(ttl, 14 * 24 * 60 * 60);
+    const userId = await getUserIdFromSession({ env, request: cookieRequest(`minuet_session=${sessionId}`) });
+    assert.strictEqual(userId, 'user-abc');
+    // Only a hash of the cookie value is stored.
+    const ids = env.db.sqlite.prepare('SELECT id FROM sessions').all().map(row => row.id);
+    assert.strictEqual(ids.length, 1);
+    assert.notStrictEqual(ids[0], sessionId);
+});
 
-    const reqContext = {
-        request: new Request('http://localhost/api/storage/todolist', {
-            headers: {
-                'Cookie': `minuet_session=${sessionId}`
-            }
-        }),
-        env: { sessions: kv }
-    };
+test('A session lasts 14 days from its last use, and each page load extends it', async () => {
+    const env = { db: new SqliteD1Database() };
+    env.db.addUser('u');
+    const start = 1_000 * DAY;
+    const { sessionId } = await createSession({ env }, 'u', start);
+    const request = cookieRequest(`minuet_session=${sessionId}`);
 
-    const retrievedUserId = await getUserIdFromSession(reqContext);
-    assert.strictEqual(retrievedUserId, userId);
+    // Used every 10 days for two months: never signed out.
+    let now = start;
+    for (let i = 0; i < 6; i++) {
+        now += 10 * DAY;
+        const { userId, cookie } = await renewSession({ env, request }, now);
+        assert.strictEqual(userId, 'u');
+        assert.match(cookie, new RegExp(`Max-Age=${14 * 24 * 60 * 60}`));
+    }
+    // Then left alone for 15 days: signed out, and the row is gone.
+    now += 15 * DAY;
+    assert.strictEqual(await getUserIdFromSession({ env, request }, now), null);
+    assert.deepStrictEqual((await renewSession({ env, request }, now)).userId, null);
+    assert.strictEqual(env.db.sqlite.prepare('SELECT COUNT(*) AS n FROM sessions').get().n, 0);
+});
+
+test('Plain API requests check the session without extending it', async () => {
+    const env = { db: new SqliteD1Database() };
+    env.db.addUser('u');
+    const { sessionId } = await createSession({ env }, 'u', 0);
+    const request = cookieRequest(`minuet_session=${sessionId}`);
+    assert.strictEqual(await getUserIdFromSession({ env, request }, 13 * DAY), 'u');
+    assert.strictEqual(await getUserIdFromSession({ env, request }, 14 * DAY + 1), null);
+});
+
+test('A session made before the move to D1 keeps working and is moved out of KV', async () => {
+    const env = { db: new SqliteD1Database(), sessions: new MockKVNamespace() };
+    env.db.addUser('u');
+    await env.sessions.put('old-session', JSON.stringify({ userId: 'u' }));
+    const request = cookieRequest('minuet_session=old-session');
+    const { userId, cookie } = await renewSession({ env, request });
+    assert.strictEqual(userId, 'u');
+    assert.match(cookie, /^minuet_session=old-session;/);
+    assert.strictEqual(await env.sessions.get('old-session'), null);
+    assert.strictEqual(await getUserIdFromSession({ env, request }), 'u');
+});
+
+test('Signing out ends the session', async () => {
+    const env = { db: new SqliteD1Database(), sessions: new MockKVNamespace() };
+    env.db.addUser('u');
+    const { sessionId } = await createSession({ env }, 'u');
+    const request = cookieRequest(`minuet_session=${sessionId}`);
+    const res = await sessionApi.onRequestDelete({ env, request });
+    assert.match(res.headers.get('Set-Cookie'), /Max-Age=0/);
+    assert.strictEqual(await getUserIdFromSession({ env, request }), null);
 });
 
 test('TodoList save is rejected when based on a stale version', async () => {

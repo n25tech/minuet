@@ -1,4 +1,4 @@
-import { getUserIdFromSession } from '../_sessions_kv/sessions.js';
+import { getUserIdFromSession } from '../_lib/sessions.js';
 
 // Default upper bound on a stored document (notes text or a serialised list).
 export const MAX_BODY_BYTES = 256 * 1024;

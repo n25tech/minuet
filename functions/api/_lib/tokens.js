@@ -1,4 +1,4 @@
-import { getUserIdFromSession } from '../_sessions_kv/sessions.js';
+import { getUserIdFromSession } from './sessions.js';
 
 /*
  * Personal access tokens. A token lets a program (an AI assistant through the MCP server) act as

@@ -1,5 +1,5 @@
 import { getUserByGoogleSub, emailBelongsToOtherAccount, createUser, updateUserProfile } from "../_db_d1/user.js";
-import { createSession, sessionCookie } from "../_sessions_kv/sessions.js";
+import { createSession, sessionCookie } from "../_lib/sessions.js";
 
 // Verify the Google ID token and return its claims, or null if it isn't valid for this app.
 async function verifyGoogleToken(idToken, clientId) {

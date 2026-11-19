@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert';
 import { readFileSync } from 'node:fs';
 import { SqliteD1Database, MockKVNamespace } from './helpers/d1.js';
-import { createSession } from '../functions/api/_sessions_kv/sessions.js';
+import { createSession } from '../functions/api/_lib/sessions.js';
 import { saveTodoListForUser } from '../functions/api/_db_d1/todolist.js';
 import { saveNotesForUser } from '../functions/api/_db_d1/notes.js';
 import * as mcp from '../functions/api/mcp.js';

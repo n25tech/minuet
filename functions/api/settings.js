@@ -1,4 +1,4 @@
-import { getUserIdFromSession } from './_sessions_kv/sessions.js';
+import { getUserIdFromSession } from './_lib/sessions.js';
 import { getSettings, saveTimezone, isTimeZone } from './_lib/settings.js';
 
 export async function onRequestGet(context) {

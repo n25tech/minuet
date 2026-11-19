@@ -13,27 +13,76 @@ const originDomain = window.APP_CONFIG.BACKEND_API_URL;
  */
 window.minuetAuth = { user: null, sessionExpired: () => setCurrentUser(null), docs: [] };
 
+/*
+ * The last account the server confirmed, kept so that a session check that fails for a reason other
+ * than "not signed in" (offline, a flaky connection, a server error) doesn't show the user as signed
+ * out. If the session really has ended, the next request that reaches the server gets a 401 and
+ * sessionExpired() signs them out then.
+ */
+const KNOWN_USER_KEY = "auth_user";
+
+function rememberUser(user) {
+    try {
+        if (user) localStorage.setItem(KNOWN_USER_KEY, JSON.stringify({ userId: user.userId, name: user.name, email: user.email }));
+        else localStorage.removeItem(KNOWN_USER_KEY);
+    } catch { /* storage blocked */ }
+}
+
+function knownUser() {
+    try {
+        const user = JSON.parse(localStorage.getItem(KNOWN_USER_KEY));
+        return user && user.userId ? user : null;
+    } catch {
+        return null;
+    }
+}
+
 function setCurrentUser(user) {
     window.minuetAuth.user = user && user.userId ? user : null;
+    rememberUser(window.minuetAuth.user);
     renderAuthUI();
     document.dispatchEvent(new CustomEvent("minuet:auth", { detail: window.minuetAuth.user }));
 }
 
-async function refreshSession() {
+/* Ask the server who is signed in. Returns the user, null when signed out, or undefined when it couldn't tell. */
+async function checkSession() {
     try {
-        const response = await fetch(`${originDomain}/api/auth/session`, { credentials: "include" });
-        const data = response.ok ? await response.json() : null;
-        window.minuetAuth.user = data && data.userId ? data : null;
+        const response = await fetch(`${originDomain}/api/auth/session`, { credentials: "include", cache: "no-store" });
+        if (!response.ok) return undefined;
+        const data = await response.json();
+        return data && data.userId ? data : null;
     } catch (error) {
         console.error("Failed to load session", error);
-        window.minuetAuth.user = null;
+        return undefined;
     }
+}
+
+async function refreshSession() {
+    const user = await checkSession();
+    window.minuetAuth.user = user === undefined ? knownUser() : user;
+    if (user !== undefined) rememberUser(user);
     renderAuthUI();
     return window.minuetAuth.user;
 }
 
 // Resolves once the initial session check has finished; data modules wait on this.
 window.minuetAuth.ready = refreshSession();
+
+// Back online (or back to the tab after a while): confirm the session, which also keeps it alive.
+async function recheckSession() {
+    const user = await checkSession();
+    if (user === undefined) return;
+    const before = window.minuetAuth.user;
+    if ((before && before.userId) !== (user && user.userId)) setCurrentUser(user);
+    else if (user) { window.minuetAuth.user = user; rememberUser(user); renderAuthUI(); }
+}
+let lastSessionCheck = Date.now();
+window.addEventListener("online", recheckSession);
+document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState !== "visible" || Date.now() - lastSessionCheck < 60 * 60 * 1000) return;
+    lastSessionCheck = Date.now();
+    recheckSession();
+});
 
 async function handleCredentialResponse(response) {
     try {
