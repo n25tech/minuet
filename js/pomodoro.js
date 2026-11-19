@@ -37,9 +37,24 @@ class TimeObject {
 
 }
 
+/* The lengths offered on the Pomodoro card; the choice is kept per device. */
+const POMODORO_DURATIONS = [2, 5, 15, 25, 45, 60];
+const POMODORO_DEFAULT_DURATION = 25;
+const POMODORO_DURATION_KEY = 'pomodoro_duration';
+
+function savedPomodoroDuration() {
+	try {
+		const saved = Number(localStorage.getItem(POMODORO_DURATION_KEY));
+		return POMODORO_DURATIONS.includes(saved) ? saved : POMODORO_DEFAULT_DURATION;
+	} catch {
+		return POMODORO_DEFAULT_DURATION;
+	}
+}
+
 class PomodoroTimer {
-	constructor(duration = 25, displayId = 'pomodoro-timer-display', buttonId = 'pomodoro-toggle-button') {
+	constructor(duration = savedPomodoroDuration(), displayId = 'pomodoro-timer-display', buttonId = 'pomodoro-toggle-button', durationsId = 'pomodoro-durations') {
 		this.pom_duration_min = duration;
+		this.durationButtons = [...(document.getElementById(durationsId)?.querySelectorAll('[data-minutes]') || [])];
 		this.timerId = null;
 		this.timeObj = new TimeObject(duration);
 		this.status = 'new';
@@ -68,7 +83,24 @@ class PomodoroTimer {
 
 	init() {
 		this.loadState();
+		this.durationButtons.forEach(button =>
+			button.addEventListener('click', () => this.setDuration(Number(button.dataset.minutes))));
+		this.updateUI();
+		// A session that was running when the page was closed keeps counting down.
+		if (this.status === 'running') this.runTimer();
 		return this;
+	}
+
+	/* Choose the length of the next pomodoro. Only between sessions, not while one is running or paused. */
+	setDuration(minutes) {
+		if (this.status !== 'new' || !POMODORO_DURATIONS.includes(minutes)) return false;
+		this.pom_duration_min = minutes;
+		this.timeObj = new TimeObject(minutes);
+		try {
+			localStorage.setItem(POMODORO_DURATION_KEY, String(minutes));
+		} catch { /* storage blocked: the choice still applies for this visit */ }
+		this.updateUI();
+		return true;
 	}
 
 	endPomodoro() {
@@ -118,6 +150,7 @@ class PomodoroTimer {
 
 	startEngine() {
 		if (this.status !== 'new') return;
+		if (this.timerId) clearInterval(this.timerId);
 		this.timeObj.start();
 		this.status = 'running';
 		this.saveState();
@@ -151,7 +184,8 @@ class PomodoroTimer {
 	}
 
 	resetEngine() {
-		this.timeObj.reset();
+		// Back to the chosen length, even if the session that just ended was a different one.
+		this.timeObj = new TimeObject(this.pom_duration_min);
 		/*
 		this.stateObject = this.resetStateObject;
 		this.saveState();
@@ -174,6 +208,16 @@ class PomodoroTimer {
 		}
 		this.render(secondsToShow);
 		this.updateButtonText(); // Always sync the button text with the status
+		this.updateDurationButtons();
+	}
+
+	updateDurationButtons() {
+		// While a session is on, show its own length and lock the choice.
+		const current = this.status === 'new' ? this.pom_duration_min : this.timeObj.duration;
+		this.durationButtons.forEach(button => {
+			button.setAttribute('aria-pressed', String(Number(button.dataset.minutes) === current));
+			button.disabled = this.status !== 'new';
+		});
 	}
 
 	updateButtonText() {

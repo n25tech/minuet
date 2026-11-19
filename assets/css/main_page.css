@@ -170,6 +170,32 @@
   text-align: left;
 }
 
+.pomodoro-length {
+  margin-top: 0.75rem;
+  text-align: left;
+}
+
+/* Six equal buttons spanning the same width as the "Working on" picker. */
+.pomodoro-durations {
+  display: flex;
+  max-width: 20rem;
+}
+
+.pomodoro-durations button {
+  flex: 1;
+  padding: 0.35rem 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.pomodoro-durations button:disabled {
+  cursor: default;
+  opacity: 0.6;
+}
+
+.pomodoro-durations button:disabled:not([aria-pressed="true"]):hover {
+  background-color: var(--bg-card);
+}
+
 .pomodoro-task select {
   width: 100%;
   max-width: 20rem;
@@ -384,3 +410,35 @@ button.todo-due:hover {
   display: inline-flex;
   color: var(--text-main);
 }
+
+/* Small phones (iPhone SE, small Androids): make all four tabs and the account button fit
+   without sideways scrolling. The home icon goes, since Pomodoro is the home view anyway. */
+@media (max-width: 420px) {
+  .navbar {
+    gap: 0.25rem;
+    padding: 0 0.5rem;
+  }
+
+  .navbar a[aria-label="Minuet home"] {
+    display: none;
+  }
+
+  .nav-tabs a {
+    padding: 0 0.35rem;
+    font-size: 0.9rem;
+  }
+
+  .signin-toggle {
+    font-size: 0.85rem;
+  }
+
+  .view {
+    padding: 0.6rem;
+  }
+
+  .pomodoro-card {
+    min-width: 0;
+    padding: 1.25rem 1rem;
+  }
+}
+
