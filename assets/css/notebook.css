@@ -63,14 +63,14 @@ button.icon-button:has(.icon) {
 }
 
 /* Note colours (cards, the editor and its swatches). */
-[data-color="default"] { --note-bg: #ffffff; }
-[data-color="red"] { --note-bg: #fad2cf; }
-[data-color="orange"] { --note-bg: #fde0c2; }
-[data-color="yellow"] { --note-bg: #fff3b0; }
-[data-color="green"] { --note-bg: #d9f2c4; }
-[data-color="teal"] { --note-bg: #c9efe6; }
-[data-color="blue"] { --note-bg: #d2e3fc; }
-[data-color="purple"] { --note-bg: #e6d5f7; }
+[data-color="default"] { --note-bg: var(--note-default); }
+[data-color="red"] { --note-bg: var(--note-red); }
+[data-color="orange"] { --note-bg: var(--note-orange); }
+[data-color="yellow"] { --note-bg: var(--note-yellow); }
+[data-color="green"] { --note-bg: var(--note-green); }
+[data-color="teal"] { --note-bg: var(--note-teal); }
+[data-color="blue"] { --note-bg: var(--note-blue); }
+[data-color="purple"] { --note-bg: var(--note-purple); }
 
 #note-panel-colors .swatch {
   --swatch: var(--note-bg);
@@ -93,7 +93,7 @@ button.icon-button:has(.icon) {
   padding: 0.8rem 0.9rem;
   border: 1px solid var(--border);
   border-radius: 10px;
-  background-color: var(--note-bg, #fff);
+  background-color: var(--note-bg, var(--bg-card));
   cursor: pointer;
   overflow: hidden;
 }
@@ -211,7 +211,7 @@ button.icon-button:has(.icon) {
 
 /* ---------- Editor ---------- */
 .note-dialog {
-  background-color: var(--note-bg, #fff);
+  background-color: var(--note-bg, var(--bg-card));
   overflow: visible;
 }
 
@@ -263,7 +263,7 @@ button.icon-button:has(.icon) {
 }
 
 .note-item:focus-within {
-  border-color: rgba(0, 0, 0, 0.12);
+  border-color: var(--border-soft);
 }
 
 .note-item-main {
@@ -297,7 +297,7 @@ button.icon-button:has(.icon) {
 
 .note-item-calendar[aria-pressed="true"] {
   color: var(--btn-primary-strong);
-  background-color: rgba(255, 255, 255, 0.6);
+  background-color: var(--overlay-soft);
 }
 
 @media (hover: none) {
@@ -327,7 +327,7 @@ button.icon-button:has(.icon) {
   padding: 0.1rem 0.35rem;
   font-size: 0.85rem;
   color: var(--text-main);
-  background-color: rgba(255, 255, 255, 0.6);
+  background-color: var(--overlay-soft);
 }
 
 .note-add-item {
@@ -349,7 +349,7 @@ button.icon-button:has(.icon) {
 .note-done-divider {
   margin-top: 0.4rem;
   padding: 0.4rem 0 0.2rem;
-  border-top: 1px solid rgba(0, 0, 0, 0.12);
+  border-top: 1px solid var(--border-soft);
   font-size: 0.85rem;
   color: var(--text-muted);
 }
@@ -363,7 +363,7 @@ button.icon-button:has(.icon) {
 }
 
 .note-dialog #note-labels {
-  background-color: rgba(255, 255, 255, 0.6);
+  background-color: var(--overlay-soft);
 }
 
 /* Bottom bar: colour, labels, options menu ... edited time, Close. */

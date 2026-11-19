@@ -163,7 +163,7 @@
   padding: 0.3rem 0.4rem 0.2rem;
   border-left: 3px solid var(--btn-primary-strong);
   border-radius: 4px;
-  background-color: var(--mint-light);
+  background-color: var(--bg-selected);
   font-weight: 600;
 }
 
@@ -259,7 +259,7 @@ button.todo-due:hover {
   width: 0.5rem;
   height: 0.5rem;
   border-radius: 50%;
-  background-color: #2e9d57;
+  background-color: var(--success);
 }
 
 .signin-label {
@@ -358,4 +358,10 @@ button.todo-due:hover {
   .center-top-column {
     order: -1;
   }
+}
+
+/* The home icon follows the theme's text colour rather than the default link blue. */
+.navbar a[aria-label="Home"] {
+  display: inline-flex;
+  color: var(--text-main);
 }

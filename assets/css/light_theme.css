@@ -1,6 +1,8 @@
-/* Default Theme (Light) */
+/* Light theme (the default). Every colour the app uses comes from these variables. */
 :root,
 [data-theme="light"] {
+  color-scheme: light;
+
   --slate-dark: #545F66;
   --slate-muted: #829399;
   --mint-light: #D0F4EA;
@@ -15,16 +17,42 @@
   --text-muted: var(--slate-muted);
 
   --bg-hover: #f1f5ee;
+  --bg-selected: var(--mint-light);
   --border: #cfd8d3;
+  --border-soft: rgba(0, 0, 0, 0.12);
   --danger: #b3261e;
+  --success: #2e9d57;
 
   --btn-primary: var(--moss-green);
   /* Darker moss: white text on --moss-green itself is too faint to read. */
   --btn-primary-strong: #5f7f2a;
   --btn-text: #ffffff;
 
+  /* Translucent wash over a coloured card (chips, toggles on notes). */
+  --overlay-soft: rgba(255, 255, 255, 0.6);
+  --backdrop: rgba(40, 50, 55, 0.45);
+  --toast-bg: #323b40;
+  --toast-text: #ffffff;
+
+  /* Calendar */
+  --line: #dfe5e1;
+  --bg-subtle: #f5f6f4;
+  --bg-subtle-hover: #fafcf8;
+  --bg-today: #fafcf5;
+  /* What light event tints are mixed towards. */
+  --mix-base: #ffffff;
+
+  /* Note colours */
+  --note-default: #ffffff;
+  --note-red: #fad2cf;
+  --note-orange: #fde0c2;
+  --note-yellow: #fff3b0;
+  --note-green: #d9f2c4;
+  --note-teal: #c9efe6;
+  --note-blue: #d2e3fc;
+  --note-purple: #e6d5f7;
+
   /* Dynamic Timer States */
   --timer-focus: var(--moss-green);
   --timer-break: var(--mint-light);
-
 }

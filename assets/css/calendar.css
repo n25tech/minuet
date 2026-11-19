@@ -9,7 +9,6 @@
 .calendar {
   --gutter: 3.5rem;
   --hour-height: 48px;   /* keep in step with HOUR_HEIGHT in calendar.js */
-  --line: #dfe5e1;
   flex: 1;
   min-height: 0;
   display: flex;
@@ -82,11 +81,11 @@
 }
 
 .cal-cell:hover {
-  background-color: #fafcf8;
+  background-color: var(--bg-subtle-hover);
 }
 
 .cal-cell.other-month {
-  background-color: #f5f6f4;
+  background-color: var(--bg-subtle);
 }
 
 .cal-cell.other-month .cal-daynum {
@@ -106,7 +105,7 @@
 .today > .cal-daynum,
 .cal-dayhead.today strong {
   background-color: var(--btn-primary-strong);
-  color: #fff;
+  color: var(--btn-text);
   font-weight: 600;
 }
 
@@ -215,14 +214,14 @@
  */
 .cal-block.suggested:not(.note):not(.todo),
 .cal-chip.solid.suggested {
-  background-color: color-mix(in srgb, var(--event) 22%, white);
+  background-color: color-mix(in srgb, var(--event) 22%, var(--mix-base));
   border: 1px dashed var(--event);
   color: var(--text-main);
 }
 
 .cal-block.suggested:not(.note):not(.todo):hover,
 .cal-chip.solid.suggested:hover {
-  background-color: color-mix(in srgb, var(--event) 32%, white);
+  background-color: color-mix(in srgb, var(--event) 32%, var(--mix-base));
   filter: none;
 }
 
@@ -354,7 +353,7 @@
 }
 
 .cal-daycol.today {
-  background-color: #fafcf5;
+  background-color: var(--bg-today);
 }
 
 .cal-block {

@@ -146,7 +146,7 @@ textarea {
 
 .segmented button[aria-pressed="true"],
 .chip[aria-pressed="true"] {
-  background-color: var(--mint-light);
+  background-color: var(--bg-selected);
   border-color: var(--btn-primary-strong);
   font-weight: 600;
   position: relative;
@@ -169,7 +169,7 @@ textarea {
 .chip.small {
   padding: 0 0.5rem;
   font-size: 0.75rem;
-  background-color: rgba(255, 255, 255, 0.6);
+  background-color: var(--overlay-soft);
 }
 
 /* Colour pickers */
@@ -211,7 +211,7 @@ textarea {
 }
 
 .dialog::backdrop {
-  background-color: rgba(40, 50, 55, 0.45);
+  background-color: var(--backdrop);
 }
 
 .dialog form {
@@ -272,8 +272,8 @@ textarea {
   gap: 0.5rem;
   padding: 0.6rem 0.6rem 0.6rem 0.9rem;
   border-radius: 8px;
-  background-color: #323b40;
-  color: #fff;
+  background-color: var(--toast-bg);
+  color: var(--toast-text);
   font-size: 0.9rem;
   box-shadow: 0 4px 14px rgba(0, 0, 0, 0.3);
 }
@@ -287,9 +287,9 @@ textarea {
 }
 
 .toast button {
-  color: #fff;
+  color: var(--toast-text);
 }
 
 .toast button:hover {
-  background-color: rgba(255, 255, 255, 0.15);
+  background-color: color-mix(in srgb, var(--toast-text) 15%, transparent);
 }
