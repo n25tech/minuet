@@ -38,7 +38,7 @@ class TimeObject {
 }
 
 /* The lengths offered on the Pomodoro card; the choice is kept per device. */
-const POMODORO_DURATIONS = [15, 25, 45, 60];
+const POMODORO_DURATIONS = [2, 5, 15, 25, 45, 60];
 const POMODORO_DEFAULT_DURATION = 25;
 const POMODORO_DURATION_KEY = 'pomodoro_duration';
 

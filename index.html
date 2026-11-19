@@ -115,11 +115,15 @@
               <label class="field pomodoro-task">Working on
                 <select id="pomodoro-task"></select>
               </label>
-              <div id="pomodoro-durations" class="segmented pomodoro-durations" role="group" aria-label="Pomodoro length">
-                <button type="button" data-minutes="15">15 min</button>
-                <button type="button" data-minutes="25">25 min</button>
-                <button type="button" data-minutes="45">45 min</button>
-                <button type="button" data-minutes="60">60 min</button>
+              <div class="field pomodoro-length">Length (minutes)
+                <div id="pomodoro-durations" class="segmented pomodoro-durations" role="group" aria-label="Pomodoro length in minutes">
+                  <button type="button" data-minutes="2" aria-label="2 minutes">2</button>
+                  <button type="button" data-minutes="5" aria-label="5 minutes">5</button>
+                  <button type="button" data-minutes="15" aria-label="15 minutes">15</button>
+                  <button type="button" data-minutes="25" aria-label="25 minutes">25</button>
+                  <button type="button" data-minutes="45" aria-label="45 minutes">45</button>
+                  <button type="button" data-minutes="60" aria-label="60 minutes">60</button>
+                </div>
               </div>
               <p id="pomodoro-timer-display">25:00</p>
               <button id="pomodoro-toggle-button" class="primary" onclick="pomodoroTimer.handleToggleBtn()">Start</button>

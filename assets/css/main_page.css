@@ -170,14 +170,21 @@
   text-align: left;
 }
 
+.pomodoro-length {
+  margin-top: 0.75rem;
+  text-align: left;
+}
+
+/* Six equal buttons spanning the same width as the "Working on" picker. */
 .pomodoro-durations {
-  margin-top: 1rem;
+  display: flex;
+  max-width: 20rem;
 }
 
 .pomodoro-durations button {
-  padding: 0.35rem 0.6rem;
-  font-size: 0.85rem;
-  white-space: nowrap;
+  flex: 1;
+  padding: 0.35rem 0;
+  font-variant-numeric: tabular-nums;
 }
 
 .pomodoro-durations button:disabled {

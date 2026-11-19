@@ -11,7 +11,7 @@ function loadPomodoro(saved = {}) {
         setAttribute(name, value) { this.attrs[name] = value; },
         addEventListener(type, fn) { this.onClick = fn; },
     });
-    const durations = [15, 25, 45, 60].map(button);
+    const durations = [2, 5, 15, 25, 45, 60].map(button);
     const display = { textContent: '' };
     const toggle = { textContent: '' };
     const elements = {
@@ -45,6 +45,8 @@ test('defaults to 25 minutes', () => {
 
 test('picking a length updates the timer and is remembered', () => {
     const p = loadPomodoro();
+    p.click(2);
+    assert.equal(p.display.textContent, '02:00');
     p.click(45);
     assert.equal(p.display.textContent, '45:00');
     assert.deepEqual(p.pressed(), [45]);
