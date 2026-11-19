@@ -482,3 +482,13 @@
     font-size: 0.68rem;
   }
 }
+
+/* Small phones: keep "Nov 1" on one line in a narrow month cell. */
+@media (max-width: 420px) {
+  .cal-daynum {
+    min-width: 0;
+    padding: 0.1rem 0.25rem;
+    font-size: 0.72rem;
+    white-space: nowrap;
+  }
+}
