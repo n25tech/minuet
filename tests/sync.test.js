@@ -215,28 +215,35 @@ test('Typing while a refresh uploads an unsynced edit is kept', async () => {
 });
 
 // Runs the real signin.js with a fake DOM; confirm() answers with `answer`.
-function loadSignin({ storage, user, answer }) {
+// `session` is what GET /api/auth/session does: a user (or { userId: null }), 'offline' or a status number.
+function loadSignin({ storage, user, answer, session = user }) {
     const requests = [];
     const sandbox = {
         console, CustomEvent,
-        window: { APP_CONFIG: { BACKEND_API_URL: '' } },
+        window: { APP_CONFIG: { BACKEND_API_URL: '' }, addEventListener() {} },
         document: { getElementById: () => null, addEventListener() {}, dispatchEvent() {} },
         localStorage: {
             get length() { return storage.size; },
             key: i => [...storage.keys()][i] ?? null,
             getItem: key => storage.has(key) ? storage.get(key) : null,
+            setItem: (key, value) => storage.set(key, String(value)),
             removeItem: key => storage.delete(key),
         },
         confirm: () => answer,
         fetch: async (url, options = {}) => {
             requests.push(options.method || 'GET');
-            return new Response(JSON.stringify(user));
+            if (session === 'offline') throw new TypeError('Failed to fetch');
+            if (typeof session === 'number') return new Response('', { status: session });
+            return new Response(JSON.stringify(session));
         },
     };
     vm.createContext(sandbox);
     vm.runInContext(readFileSync(new URL('../js/signin.js', import.meta.url), 'utf8'), sandbox);
     return { auth: sandbox.window.minuetAuth, requests, signOut: () => vm.runInContext('signOut()', sandbox) };
 }
+
+// Storage keys other than the remembered account.
+const dataKeys = storage => [...storage.keys()].filter(key => key !== 'auth_user').sort();
 
 test('Sign out with unsynced edits asks first, then deletes only that user\'s copies', async () => {
     const unsynced = () => new Map([
@@ -253,14 +260,48 @@ test('Sign out with unsynced edits asks first, then deletes only that user\'s co
     await cancelled.signOut();
     assert.strictEqual(cancelled.auth.user.userId, 'user-1');
     assert.deepStrictEqual(cancelled.requests, ['GET']);
-    assert.strictEqual(storage.size, 4);
+    assert.strictEqual(dataKeys(storage).length, 4);
 
     const confirmed = loadSignin({ storage, user, answer: true });
     await confirmed.auth.ready;
     await confirmed.signOut();
     assert.strictEqual(confirmed.auth.user, null);
     assert.deepStrictEqual(confirmed.requests, ['GET', 'DELETE']);
-    assert.deepStrictEqual([...storage.keys()].sort(), ['notes', 'notes:unsynced:user-2']);
+    assert.deepStrictEqual(dataKeys(storage), ['notes', 'notes:unsynced:user-2']);
+    assert.strictEqual(storage.has('auth_user'), false);
+});
+
+test('A session check that fails (offline or a server error) keeps the last known account signed in', async () => {
+    const user = { userId: 'user-1', email: 'me@example.com', name: 'Me' };
+    const storage = new Map();
+    await loadSignin({ storage, user }).auth.ready;   // signed in online: remembered
+    for (const session of ['offline', 500, 503]) {
+        const { auth } = loadSignin({ storage, session });
+        await auth.ready;
+        assert.strictEqual(auth.user?.userId, 'user-1', `after ${session}`);
+    }
+});
+
+test('The server saying "not signed in" does sign out, and forgets the account', async () => {
+    const storage = new Map();
+    await loadSignin({ storage, user: { userId: 'user-1' } }).auth.ready;
+    const { auth } = loadSignin({ storage, session: { userId: null } });
+    await auth.ready;
+    assert.strictEqual(auth.user, null);
+    assert.strictEqual(storage.has('auth_user'), false);
+    const offline = loadSignin({ storage, session: 'offline' });
+    await offline.auth.ready;
+    assert.strictEqual(offline.auth.user, null);
+});
+
+test('A session that expires while offline signs out at the first 401', async () => {
+    const storage = new Map();
+    await loadSignin({ storage, user: { userId: 'user-1' } }).auth.ready;
+    const { auth } = loadSignin({ storage, session: 'offline' });
+    await auth.ready;
+    auth.sessionExpired();
+    assert.strictEqual(auth.user, null);
+    assert.strictEqual(storage.has('auth_user'), false);
 });
 
 test('Sign out waits for unsaved notes to reach the server before ending the session', async () => {

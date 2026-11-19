@@ -1,4 +1,4 @@
-import { getUserIdFromSession } from './_sessions_kv/sessions.js';
+import { getUserIdFromSession } from './_lib/sessions.js';
 import { ToolError, listHistory, undo } from './_lib/workspace.js';
 
 // The record of changes made through access tokens, for the signed-in user to review and undo in the app.
