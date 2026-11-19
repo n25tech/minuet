@@ -104,7 +104,7 @@ export async function mutate(db, userId, actor, change) {
         await db.prepare('INSERT INTO history (id, user_id, at, actor, summary, changes) VALUES (?, ?, ?, ?, ?, ?)')
             .bind(historyId, userId, now, actor, summary, JSON.stringify(changes)).run();
         await db.prepare(`DELETE FROM history WHERE user_id = ? AND id NOT IN
-            (SELECT id FROM history WHERE user_id = ? ORDER BY at DESC, id LIMIT ?)`).bind(userId, userId, MAX_HISTORY).run();
+            (SELECT id FROM history WHERE user_id = ? ORDER BY at DESC, rowid DESC LIMIT ?)`).bind(userId, userId, MAX_HISTORY).run();
         return { result, adjustments, historyId };
     }
     throw new ToolError('Your notes are being changed from another device right now. Try again in a moment.');
@@ -112,7 +112,7 @@ export async function mutate(db, userId, actor, change) {
 
 export async function listHistory(db, userId, limit = 50) {
     const { results } = await db.prepare(`SELECT id, at, actor, summary, changes, undone_at FROM history
-        WHERE user_id = ? ORDER BY at DESC, id LIMIT ?`).bind(userId, Math.min(Math.max(1, limit), MAX_HISTORY)).all();
+        WHERE user_id = ? ORDER BY at DESC, rowid DESC LIMIT ?`).bind(userId, Math.min(Math.max(1, limit), MAX_HISTORY)).all();
     return results.map(row => ({
         id: row.id,
         at: row.at,
