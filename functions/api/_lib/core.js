@@ -251,6 +251,20 @@ function newDefaultNote(id) {
 	return id === TODO_NOTE_ID ? { ...note, type: "list", title: "To-do list" } : { ...note, type: "text", title: "Distraction diary" };
 }
 
+/*
+ * Any other note labelled "pomodoro" can be used on the Pomodoro page too: checklists in the to-do panel
+ * and plain notes in the diary panel. pomodoroNotes(notes, "list" | "text") lists the ones of a kind, the
+ * default note first (even if its label was removed), then the rest by name.
+ */
+const hasPomodoroLabel = note => (note.labels || []).some(label => String(label).trim().toLowerCase() === POMODORO_LABEL);
+
+function pomodoroNotes(notes, type) {
+	const defaultId = type === "list" ? TODO_NOTE_ID : DIARY_NOTE_ID;
+	const others = notes.filter(note => !isDefaultNote(note) && hasPomodoroLabel(note) && (note.type === "list") === (type === "list"))
+		.sort((a, b) => noteHeading(a).localeCompare(noteHeading(b)));
+	return [notes.find(note => note.id === defaultId) || newDefaultNote(defaultId), ...others];
+}
+
 /* To-do items as they were stored before the to-do list became a note ({ text, complete, ... }), as checklist entries. */
 function legacyTodoItems(list, newId) {
 	return (Array.isArray(list) ? list : []).filter(item => item && typeof item.text === "string").map(item => ({
@@ -362,5 +376,5 @@ function settleTasks(events, notes, changedIds) {
 }
 
 export {
-    DAY_MS, toYMD, toHM, toLocalISO, parseLocal, startOfDay, addDays, daysBetween, eventBounds, REPEAT_FREQS, expandEvents, resolveSchedule, POMODORO_LABEL, TODO_NOTE_ID, DIARY_NOTE_ID, isDefaultNote, newDefaultNote, legacyTodoItems, clearTask, setRepeat, setStatus, noteHeading, noteTasks, settleTasks,
+    DAY_MS, toYMD, toHM, toLocalISO, parseLocal, startOfDay, addDays, daysBetween, eventBounds, REPEAT_FREQS, expandEvents, resolveSchedule, POMODORO_LABEL, TODO_NOTE_ID, DIARY_NOTE_ID, isDefaultNote, newDefaultNote, hasPomodoroLabel, pomodoroNotes, legacyTodoItems, clearTask, setRepeat, setStatus, noteHeading, noteTasks, settleTasks,
 };

@@ -399,8 +399,11 @@ class Notebook {
 			value: item.text,
 			placeholder: "List item",
 			"aria-label": "List item",
+			// Phone keyboards would otherwise offer "Next", which moves on without sending Enter.
+			enterkeyhint: "enter",
 			oninput: () => { item.text = input.value; },
 			onkeydown: event => {
+				if (event.isComposing) return;   // Enter is choosing a word in an input method
 				if (event.key === "Enter") {
 					event.preventDefault();
 					this._addItem(item);
@@ -499,6 +502,14 @@ class Notebook {
 		})));
 
 		this._part("title").addEventListener("input", event => { this.draft.title = event.target.value; });
+		// Enter in the title goes on to the note, as in Keep.
+		this._part("title").addEventListener("keydown", event => {
+			if (event.key !== "Enter" || event.isComposing) return;
+			event.preventDefault();
+			if (this.draft.type !== "list") this._part("text").focus();
+			else if (this.draft.items.some(item => !item.done)) this._focusItem(this.draft.items.find(item => !item.done).id);
+			else this._addItem();
+		});
 		this._part("text").addEventListener("input", event => {
 			this.draft.text = event.target.value;
 			this._autosize();
@@ -562,6 +573,10 @@ class Notebook {
 		this._part("form").addEventListener("submit", event => {
 			event.preventDefault();
 			this.dialog.close();
+		});
+		// Enter while typing labels mustn't close the note (it would submit the form).
+		this._part("labels").addEventListener("keydown", event => {
+			if (event.key === "Enter" && !event.isComposing) event.preventDefault();
 		});
 		// Every way of closing the editor (Close, Escape, backdrop) saves the note.
 		this.dialog.addEventListener("close", () => this._saveDraft());

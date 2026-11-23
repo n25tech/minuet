@@ -212,6 +212,17 @@
   font-weight: 600;
 }
 
+/* Choosing which "pomodoro" note the to-do list and diary show, when there is more than one. */
+.pomodoro-note-picker {
+  width: 100%;
+  margin-top: -0.25rem;
+  text-overflow: ellipsis;
+}
+
+.pomodoro-note-picker[hidden] {
+  display: none;
+}
+
 #notes-area {
   width: 100%;
   min-height: 16rem;
