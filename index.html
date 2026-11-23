@@ -17,16 +17,16 @@
   <script src="js/signin.js?v=5" defer></script>
   <script src="js/sync.js?v=5" defer></script>
   <script src="js/calendar-core.js?v=2" defer></script>
-  <script src="js/tasks-core.js?v=1" defer></script>
-  <script src="js/notebook.js?v=4" defer></script>
-  <script src="js/todolist.js?v=8" defer></script>
-  <script src="js/diary.js?v=1" defer></script>
+  <script src="js/tasks-core.js?v=2" defer></script>
+  <script src="js/notebook.js?v=5" defer></script>
+  <script src="js/todolist.js?v=9" defer></script>
+  <script src="js/diary.js?v=2" defer></script>
   <script src="js/calendar.js?v=4" defer></script>
   <script src="js/settings.js?v=2" defer></script>
   <link rel="stylesheet" href="assets/css/styles.css?v=5">
   <link rel="stylesheet" href="assets/css/light_theme.css?v=4">
   <link rel="stylesheet" href="assets/css/dark_theme.css?v=3">
-  <link rel="stylesheet" href="assets/css/main_page.css?v=10">
+  <link rel="stylesheet" href="assets/css/main_page.css?v=11">
   <link rel="stylesheet" href="assets/css/notebook.css?v=4">
   <link rel="stylesheet" href="assets/css/calendar.css?v=5">
   <link rel="stylesheet" href="assets/css/settings.css?v=1">
@@ -84,9 +84,10 @@
         <section class="view view-pomodoro" data-view="pomodoro">
           <div class="left-column panel">
             <h3>To-do list</h3>
+            <select id="pomodoro-list" class="pomodoro-note-picker" aria-label="Checklist to show" hidden></select>
             <div id="todolist-table-container" class="todo-items"></div>
             <form id="todo-form" class="todo-form">
-              <input type="text" id="new-item-input" placeholder="New item" aria-label="New to-do item">
+              <input type="text" id="new-item-input" placeholder="New item" aria-label="New to-do item" enterkeyhint="enter">
               <label class="check" title="Show this to-do on the Calendar at a date and time">
                 <input type="checkbox" id="new-item-calendar"> Add to calendar
               </label>
@@ -132,6 +133,7 @@
           </div>
           <div class="right-column panel">
             <h3>Distraction diary</h3>
+            <select id="diary-note" class="pomodoro-note-picker" aria-label="Note to show" hidden></select>
             <textarea id="notes-area" placeholder="Jot down distractions here and get back to work..."></textarea>
           </div>
         </section>

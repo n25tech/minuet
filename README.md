@@ -8,6 +8,8 @@ A productivity app written in vanilla js.
 * **Pomodoro** (`#/pomodoro`) - pomodoro timer, to-do list and distraction diary.
   Tick "Add to calendar" on a new to-do to give it a date and (optionally) a time.
   The to-do list and the diary are two default notes labelled `pomodoro`, so they can also be opened under Notes.
+  Label any other note `pomodoro` to use it here too: checklists can be picked above the to-do list (and their
+  to-dos picked as "Working on"), plain notes above the diary.
 * **Notes** (`#/notes`) - Keep-style notes with colours, labels and search. The options menu at the bottom
   of a note turns it into a checklist (and back) or adds the note to the calendar; each checklist entry
   can also be added to the calendar on its own. The Notes home only shows the notes you pin to it;

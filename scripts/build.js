@@ -7,7 +7,7 @@ export const CORE_MODULE = 'functions/api/_lib/core.js';
 const CORE_EXPORTS = [
     'DAY_MS', 'toYMD', 'toHM', 'toLocalISO', 'parseLocal', 'startOfDay', 'addDays', 'daysBetween', 'eventBounds',
     'REPEAT_FREQS', 'expandEvents', 'resolveSchedule',
-    'POMODORO_LABEL', 'TODO_NOTE_ID', 'DIARY_NOTE_ID', 'isDefaultNote', 'newDefaultNote', 'legacyTodoItems',
+    'POMODORO_LABEL', 'TODO_NOTE_ID', 'DIARY_NOTE_ID', 'isDefaultNote', 'newDefaultNote', 'hasPomodoroLabel', 'pomodoroNotes', 'legacyTodoItems',
     'clearTask', 'setRepeat', 'setStatus', 'noteHeading', 'noteTasks', 'settleTasks',
 ];
 
