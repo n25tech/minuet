@@ -1,4 +1,5 @@
 import { cp, mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { build } from 'esbuild';
 
 // The browser's DOM-free logic is also what the server uses to apply the scheduling rules,
 // so the two can't drift apart. The browser loads these as plain scripts; the server needs a module.
@@ -10,6 +11,37 @@ const CORE_EXPORTS = [
     'POMODORO_LABEL', 'TODO_NOTE_ID', 'DIARY_NOTE_ID', 'isDefaultNote', 'newDefaultNote', 'hasPomodoroLabel', 'pomodoroNotes', 'legacyTodoItems',
     'clearTask', 'setRepeat', 'setStatus', 'noteHeading', 'noteTasks', 'settleTasks',
 ];
+
+// Browser bundles of npm libraries (and the code using them), for the app's plain scripts.
+// index.html refers to each as js/<name>.js; the built page points at bundles/<name>-<hash>.js, so a
+// changed bundle gets a new address and browsers never keep a stale copy (_headers lets them cache
+// bundles/ for good). They are ES modules so parts used now and then (code colouring) load on demand.
+export const BUNDLES = { markdown: 'src/markdown/browser.js' };
+
+async function buildBundles() {
+    let html = await readFile('public/index.html', 'utf8');
+    for (const [name, entry] of Object.entries(BUNDLES)) {
+        const result = await build({
+            entryPoints: { [name]: entry },
+            bundle: true,
+            format: 'esm',
+            splitting: true,
+            minify: true,
+            target: 'es2020',
+            outdir: 'public/bundles',
+            entryNames: '[name]-[hash]',
+            chunkNames: '[name]-[hash]',
+            metafile: true,
+            legalComments: 'linked',
+            logLevel: 'warning',
+        });
+        const [output] = Object.entries(result.metafile.outputs).find(([, info]) => info.entryPoint === entry);
+        const reference = `<script type="module" src="js/${name}.js">`;
+        if (!html.includes(reference)) throw new Error(`index.html has no ${reference} for the ${name} bundle`);
+        html = html.replace(reference, `<script type="module" src="${output.replace(/^public\//, '')}">`);
+    }
+    await writeFile('public/index.html', html);
+}
 
 export async function coreModuleSource() {
     const parts = await Promise.all(CORE_SOURCES.map(path => readFile(path, 'utf8')));
@@ -26,4 +58,5 @@ if (import.meta.url === `file://${process.argv[1]}`) {
     for (const path of ['index.html', 'js', 'assets', 'sw.js', '_headers']) {
         await cp(path, `public/${path}`, { recursive: true });
     }
+    await buildBundles();
 }

@@ -136,6 +136,11 @@ class Notebook {
 		document.getElementById("notes-new-list").append(icon("checklist", 20));
 		document.getElementById("notes-new-list").addEventListener("click", () => this.create("list"));
 		this._bindEditor();
+		// Code colouring arrives after the first draw; show it once it has.
+		document.addEventListener("minuet:markdown-ready", () => {
+			this.render();
+			this._renderPreview();
+		});
 		this.store.init();
 		this.render();
 		return this;

@@ -1,7 +1,7 @@
 
 # Minuet
 
-A productivity app written in vanilla js.
+A productivity app: pomodoro timer, Keep-style notes and a calendar.
 
 ### Features:
 
@@ -14,7 +14,8 @@ A productivity app written in vanilla js.
   of a note turns it into a checklist (and back) or adds the note to the calendar; each checklist entry
   can also be added to the calendar on its own. The Notes home only shows the notes you pin to it;
   "All notes" lists everything. Plain notes can be long and use Markdown (headings, **bold**, lists,
-  `- [ ]` checkboxes, quotes, code, links), typed or added with the toolbar, and are shown formatted;
+  `- [ ]` checkboxes, tables, quotes, links, and code blocks with syntax colouring), typed or added with
+  the toolbar, and are shown formatted;
   an open note fills the screen, and on wide screens shows the formatted note side by side with the text.
 * **Calendar** (`#/calendar`) - month, week and day views, all-day and repeating events
   (daily / weekly / monthly / yearly), plus the notes and checklist entries you added to the calendar.
@@ -56,6 +57,13 @@ The scheduling rules live in `js/calendar-core.js` and `js/tasks-core.js`. `npm 
 ### Run Locally:
 `npm install && npm run dev` - serves the app and API at http://localhost:3000
 
+### Build:
+
+`npm run build` writes the site to `public/`. The app's scripts in `js/` are copied as they are; code that uses
+npm libraries lives in `src/` and is bundled with esbuild into `public/bundles/` (file names carry a content
+hash, and the built `index.html` points at them). The Markdown renderer for notes is `src/markdown/`:
+markdown-it, DOMPurify, and highlight.js, which is loaded only when a note with code is shown.
+
 ### Database:
 
 The D1 schema lives in `migrations/`. Apply it with:
@@ -66,7 +74,3 @@ The D1 schema lives in `migrations/`. Apply it with:
 ### Deployment:
 
 This project is deployed via cloudflare pages. You can view it at: https://minuet.n25tech.com/
-
-### Motivation:
-
-I just wanted to write something in vanilla js.

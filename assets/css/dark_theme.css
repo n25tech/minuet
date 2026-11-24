@@ -42,4 +42,17 @@
 
   --timer-focus: #8fae58;
   --timer-break: #2d4a3f;
+
+  --code-bg: rgba(255, 255, 255, 0.07);
+  --code-keyword: #ff7b72;
+  --code-string: #a5d6ff;
+  --code-number: #79c0ff;
+  --code-comment: #8b949e;
+  --code-title: #d2a8ff;
+  --code-attr: #ffa657;
+  --code-tag: #7ee787;
+  --code-added: #aff5b4;
+  --code-added-bg: rgba(46, 160, 67, 0.15);
+  --code-removed: #ffdcd7;
+  --code-removed-bg: rgba(248, 81, 73, 0.15);
 }
