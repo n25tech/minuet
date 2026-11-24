@@ -143,7 +143,31 @@ class Notebook {
 		});
 		this.store.init();
 		this.render();
+		this._loadCodeEditor();
 		return this;
+	}
+
+	/*
+	 * The note text is typed in a code editor (src/editor/) that shows headings at their sizes. It
+	 * loads in the background once the page is idle; a note opened before then uses the plain text box.
+	 */
+	_loadCodeEditor() {
+		if (typeof loadNoteEditor !== "function") return;
+		const load = () => loadNoteEditor().then(({ createEditor }) => {
+			this.code = createEditor(this._part("code"), {
+				placeholder: this._part("text").placeholder,
+				onChange: value => this._textChanged(value),
+				onShortcut: kind => this._format(kind),
+			});
+			this.code.scroller.addEventListener("scroll", () => this._followScroll(this.code.scroller));
+		}, error => console.error("Could not load the note editor; using the plain text box.", error));
+		if ("requestIdleCallback" in window) requestIdleCallback(load, { timeout: 3000 });
+		else setTimeout(load, 500);
+	}
+
+	/* Whichever of the two is typing the note text: the code editor, or the plain text box. */
+	get _text() {
+		return this.useCode ? this.code : this.textBox;
 	}
 
 	setScope(scope) {
@@ -321,7 +345,10 @@ class Notebook {
 	_edit(note, isNew) {
 		this.draft = { text: "", items: [], labels: [], color: "default", ...note };
 		this.draftIsNew = isNew;
-		this.draftOriginal = JSON.stringify(this.draft);
+		this.useCode = !!this.code;
+		clearTimeout(this.autosaveTimer);
+		// What's in the store for this note (the same as opened, until an autosave).
+		this.openedAs = this.lastSaved = JSON.stringify(this._normalized(this.draft));
 		this._part("title").value = this.draft.title || "";
 		this._part("labels").value = this.draft.labels.join(", ");
 		this._part("label-options").replaceChildren(...this.labels.map(label => el("option", { value: label })));
@@ -336,7 +363,7 @@ class Notebook {
 		this._autosize();
 		if (!isNew) this._part("title").focus();
 		else if (this.draft.type === "list") this._focusItem(this.draft.items[0].id);
-		else this._part("text").focus();
+		else this._text.focus();
 	}
 
 	/* Redraw everything in the editor that depends on the draft's settings. */
@@ -344,10 +371,12 @@ class Notebook {
 		const draft = this.draft;
 		const isList = draft.type === "list";
 		this.dialog.dataset.color = draft.color;
-		const text = this._part("text");
 		const previewing = !isList && this.previewing;
-		text.hidden = isList || previewing;
-		if (!isList) text.value = draft.text;
+		const writing = !isList && !previewing;
+		this._part("text").hidden = !writing || this.useCode;
+		this._part("code").hidden = !writing || !this.useCode;
+		// Only when it differs: setting it resets the cursor (and the code editor's undo).
+		if (!isList && this._text.value !== draft.text) this._text.value = draft.text;
 		this._part("format").hidden = isList;
 		this._part("format-tools").hidden = previewing;
 		const toggle = this._part("preview-toggle");
@@ -387,6 +416,7 @@ class Notebook {
 			button.setAttribute("aria-pressed", String(button.dataset.color === draft.color));
 		});
 		this._autosize();
+		this._scheduleAutosave();
 	}
 
 	_renderPreview() {
@@ -526,7 +556,7 @@ class Notebook {
 		}
 		this._renderDraft();
 		if (draft.type === "list") this._focusItem(draft.items[draft.items.length - 1].id);
-		else this._part("text").focus();
+		else this._text.focus();
 	}
 
 	_bindEditor() {
@@ -550,17 +580,26 @@ class Notebook {
 		this._part("title").addEventListener("keydown", event => {
 			if (event.key !== "Enter" || event.isComposing) return;
 			event.preventDefault();
-			if (this.draft.type !== "list") this._part("text").focus();
+			if (this.draft.type !== "list") this._text.focus();
 			else if (this.draft.items.some(item => !item.done)) this._focusItem(this.draft.items.find(item => !item.done).id);
 			else this._addItem();
 		});
-		this._part("text").addEventListener("input", event => {
-			this.draft.text = event.target.value;
-			this._autosize();
-			// Keep the side-by-side preview current, without redrawing a long note on every key.
-			clearTimeout(this.previewTimer);
-			this.previewTimer = setTimeout(() => this._renderPreview(), 120);
-		});
+		// The plain text box, behind the same interface as the code editor.
+		const box = this._part("text");
+		this.textBox = {
+			element: box,
+			scroller: box,
+			get value() { return box.value; },
+			set value(text) { box.value = text; },
+			get selection() { return [box.selectionStart, box.selectionEnd]; },
+			replace(start, end, insert, selStart, selEnd) {
+				box.setRangeText(insert, start, end);
+				box.setSelectionRange(selStart, selEnd);
+				box.dispatchEvent(new Event("input"));
+			},
+			focus() { box.focus(); },
+		};
+		box.addEventListener("input", () => this._textChanged(box.value));
 		this._bindFormatting();
 		this._part("labels").addEventListener("input", event => {
 			this.draft.labels = parseLabels(event.target.value);
@@ -622,11 +661,17 @@ class Notebook {
 			event.preventDefault();
 			this.dialog.close();
 		});
+		// Saved as you go: a moment after typing stops, and straight away if the page is hidden or closed.
+		this.dialog.addEventListener("input", () => this._scheduleAutosave());
+		this.dialog.addEventListener("change", () => this._scheduleAutosave());
+		const saveNow = () => { if (this.draft) this._autosave(); };
+		document.addEventListener("visibilitychange", () => { if (document.hidden) saveNow(); });
+		window.addEventListener("pagehide", saveNow);
 		// Enter while typing labels mustn't close the note (it would submit the form).
 		this._part("labels").addEventListener("keydown", event => {
 			if (event.key === "Enter" && !event.isComposing) event.preventDefault();
 		});
-		// Every way of closing the editor (Close, Escape, backdrop) saves the note.
+		// Every way of closing the editor (Done, Escape) saves the note.
 		this.dialog.addEventListener("close", () => this._saveDraft());
 	}
 
@@ -636,7 +681,7 @@ class Notebook {
 		const setPreview = on => {
 			this.previewing = on;
 			this._renderDraft();
-			if (!on) text.focus();
+			if (!on) this._text.focus();
 		};
 		this._part("preview-toggle").addEventListener("click", () => setPreview(!this.previewing));
 		this.wideScreen = matchMedia("(min-width: 64rem)");
@@ -645,16 +690,10 @@ class Notebook {
 			this.split = !this.split;
 			try { localStorage.setItem("note_split", this.split ? "on" : "off"); } catch { /* not remembered */ }
 			this._renderDraft();
-			text.focus();
+			this._text.focus();
 		});
 		this.wideScreen.addEventListener("change", () => { if (this.draft) this._renderDraft(); });
-		// Side by side, the preview scrolls along with the text, to the same place proportionally.
-		const preview = this._part("preview");
-		text.addEventListener("scroll", () => {
-			if (!this._part("body").classList.contains("split")) return;
-			const range = text.scrollHeight - text.clientHeight;
-			preview.scrollTop = range > 0 ? text.scrollTop / range * (preview.scrollHeight - preview.clientHeight) : 0;
-		});
+		text.addEventListener("scroll", () => this._followScroll(text));
 		// Clicking the formatted text goes back to editing, except on a link or inside a selection.
 		this._part("preview").addEventListener("click", event => {
 			if (event.target.closest("a") || String(getSelection())) return;
@@ -673,68 +712,87 @@ class Notebook {
 		});
 	}
 
-	/* Apply one toolbar action to the selection in the note text, as Markdown. */
+	/* Side by side, the preview scrolls along with the text, to the same place proportionally. */
+	_followScroll(source) {
+		if (!this._part("body").classList.contains("split")) return;
+		const preview = this._part("preview");
+		const range = source.scrollHeight - source.clientHeight;
+		preview.scrollTop = range > 0 ? source.scrollTop / range * (preview.scrollHeight - preview.clientHeight) : 0;
+	}
+
+	_textChanged(value) {
+		if (!this.draft) return;
+		this.draft.text = value;
+		this._autosize();
+		// Keep the side-by-side preview current, without redrawing a long note on every key.
+		clearTimeout(this.previewTimer);
+		this.previewTimer = setTimeout(() => this._renderPreview(), 120);
+		this._scheduleAutosave();
+	}
+
+	/* Apply one toolbar action to the selection in the note text, as Markdown (see src/markdown/format.js). */
 	_format(kind) {
-		const text = this._part("text");
-		const { selectionStart: start, selectionEnd: end, value } = text;
-		const selected = value.slice(start, end);
-		const wrap = { bold: "**", italic: "*", strike: "~~", code: "`" }[kind];
-		const prefix = { heading: "## ", bullet: "- ", number: "1. ", task: "- [ ] ", quote: "> " }[kind];
-		text.focus();
-		if (wrap) {
-			if (kind === "code" && selected.includes("\n")) {
-				text.setRangeText("```\n" + selected + "\n```", start, end, "select");
-			} else {
-				text.setRangeText(wrap + selected + wrap, start, end, "end");
-				// With nothing selected, leave the cursor between the markers, ready to type.
-				if (!selected) text.setSelectionRange(start + wrap.length, start + wrap.length);
-				else text.setSelectionRange(start + wrap.length, end + wrap.length);
-			}
-		} else if (prefix) {
-			// Applies to every line the selection touches; applying it again takes it off.
-			const lineStart = start ? value.lastIndexOf("\n", start - 1) + 1 : 0;
-			const lineEnd = value.indexOf("\n", end) < 0 ? value.length : value.indexOf("\n", end);
-			const lines = value.slice(lineStart, lineEnd).split("\n");
-			const marker = kind === "number" ? /^\d+[.)] / : new RegExp("^" + prefix.replace(/[[\]]/g, "\\$&"));
-			const remove = lines.every(line => marker.test(line));
-			const changed = lines.map((line, index) => {
-				if (remove) return line.replace(marker, "");
-				const bare = line.replace(/^(#{1,6} |[-*+] \[[ xX]\] |[-*+] |\d+[.)] |> )/, "");
-				return (kind === "number" ? `${index + 1}. ` : prefix) + bare;
-			}).join("\n");
-			text.setRangeText(changed, lineStart, lineEnd, "end");
-		} else if (kind === "link") {
-			const label = selected || "link text";
-			text.setRangeText(`[${label}](https://)`, start, end, "end");
-			// Select the address so it can be pasted over.
-			const urlAt = start + label.length + 3;
-			text.setSelectionRange(urlAt, urlAt + "https://".length);
+		const editor = this._text;
+		const [start, end] = editor.selection;
+		const edit = formatEdit(kind, editor.value, start, end);
+		if (!edit) return;
+		editor.focus();
+		editor.replace(edit.start, edit.end, edit.insert, edit.selStart, edit.selEnd);
+	}
+
+	/* The note as it would be stored: trimmed title, no empty checklist entries, calendar fields only when on it. */
+	_normalized(draft) {
+		const note = structuredClone(draft);
+		note.title = (note.title || "").trim();
+		if (note.type === "list") {
+			note.text = "";
+			note.items = note.items.filter(item => item.text.trim());
+			// An entry ticked for the calendar but left without a date isn't on it.
+			for (const item of note.items) if (item.calendar && !item.due) clearTask(item);
+		} else {
+			note.items = [];
 		}
-		text.dispatchEvent(new Event("input"));
+		if (!note.calendar || !note.due) clearTask(note);
+		return note;
+	}
+
+	_scheduleAutosave() {
+		if (!this.draft) return;
+		clearTimeout(this.autosaveTimer);
+		this.autosaveTimer = setTimeout(() => this._autosave(), 1000);
+	}
+
+	/* Store the open note as it stands, if it changed. It stays open; closing it still saves (and settles the calendar). */
+	_autosave() {
+		clearTimeout(this.autosaveTimer);
+		const draft = this.draft;
+		if (!draft) return;
+		const note = this._normalized(draft);
+		if (isBlankNote(note) && !isDefaultNote(note)) return;   // nothing worth keeping yet
+		const json = JSON.stringify(note);
+		if (json === this.lastSaved) return;
+		this.store.upsert(note);   // a copy: the store keeps what it's given
+		this.lastSaved = json;
+		this.draftIsNew = false;   // it exists now, so emptying it and closing deletes it
+		this._part("delete").hidden = isDefaultNote(draft);
+		this._part("edited").textContent = "Saved";
 	}
 
 	_saveDraft() {
+		clearTimeout(this.autosaveTimer);
 		const draft = this.draft;
 		if (!draft) return;
 		this.draft = null;
-		draft.title = (draft.title || "").trim();
-		if (draft.type === "list") {
-			draft.text = "";
-			draft.items = draft.items.filter(item => item.text.trim());
-			// An entry ticked for the calendar but left without a date isn't on it.
-			for (const item of draft.items) if (item.calendar && !item.due) clearTask(item);
-		} else {
-			draft.items = [];
-		}
-		if (!draft.calendar || !draft.due) clearTask(draft);
-		if (isBlankNote(draft) && !isDefaultNote(draft)) {
-			if (!this.draftIsNew) this.store.remove(draft.id);
+		const note = this._normalized(draft);
+		if (isBlankNote(note) && !isDefaultNote(note)) {
+			if (!this.draftIsNew) this.store.remove(note.id);
 			return;
 		}
-		if (JSON.stringify(draft) === this.draftOriginal) return;
-		this.store.upsert(draft);
+		const json = JSON.stringify(note);
+		if (json === this.openedAs && this.lastSaved === this.openedAs) return;   // untouched
+		if (json !== this.lastSaved) this.store.upsert(note);
 		// Apply the suggested/committed rules to whatever this note has on the calendar.
-		settleSchedule(this.calendarEntries([draft]).map(task => task.id));
+		settleSchedule(this.calendarEntries([note]).map(task => task.id));
 	}
 }
 

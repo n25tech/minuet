@@ -15,8 +15,9 @@ A productivity app: pomodoro timer, Keep-style notes and a calendar.
   can also be added to the calendar on its own. The Notes home only shows the notes you pin to it;
   "All notes" lists everything. Plain notes can be long and use Markdown (headings, **bold**, lists,
   `- [ ]` checkboxes, tables, quotes, links, and code blocks with syntax colouring), typed or added with
-  the toolbar, and are shown formatted;
-  an open note fills the screen, and on wide screens shows the formatted note side by side with the text.
+  the toolbar, and are shown formatted. An open note fills the screen; headings show at their sizes while
+  you type, wide screens show the formatted note side by side, and the note saves itself as you go
+  (**Done** or Esc closes it).
 * **Calendar** (`#/calendar`) - month, week and day views, all-day and repeating events
   (daily / weekly / monthly / yearly), plus the notes and checklist entries you added to the calendar.
 * Google sign-in to sync everything across devices; signed out, it all lives in localStorage.
@@ -62,7 +63,8 @@ The scheduling rules live in `js/calendar-core.js` and `js/tasks-core.js`. `npm 
 `npm run build` writes the site to `public/`. The app's scripts in `js/` are copied as they are; code that uses
 npm libraries lives in `src/` and is bundled with esbuild into `public/bundles/` (file names carry a content
 hash, and the built `index.html` points at them). The Markdown renderer for notes is `src/markdown/`:
-markdown-it, DOMPurify, and highlight.js, which is loaded only when a note with code is shown.
+markdown-it, DOMPurify, and highlight.js, which is loaded only when a note with code is shown. The note text
+editor is CodeMirror (`src/editor/`), loaded in the background once the page is idle.
 
 ### Database:
 
