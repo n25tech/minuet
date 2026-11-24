@@ -18,7 +18,8 @@
   <script src="js/sync.js?v=5" defer></script>
   <script src="js/calendar-core.js?v=2" defer></script>
   <script src="js/tasks-core.js?v=2" defer></script>
-  <script src="js/notebook.js?v=5" defer></script>
+  <script src="js/markdown.js?v=1" defer></script>
+  <script src="js/notebook.js?v=6" defer></script>
   <script src="js/todolist.js?v=9" defer></script>
   <script src="js/diary.js?v=2" defer></script>
   <script src="js/calendar.js?v=4" defer></script>
@@ -27,7 +28,7 @@
   <link rel="stylesheet" href="assets/css/light_theme.css?v=4">
   <link rel="stylesheet" href="assets/css/dark_theme.css?v=3">
   <link rel="stylesheet" href="assets/css/main_page.css?v=11">
-  <link rel="stylesheet" href="assets/css/notebook.css?v=4">
+  <link rel="stylesheet" href="assets/css/notebook.css?v=5">
   <link rel="stylesheet" href="assets/css/calendar.css?v=5">
   <link rel="stylesheet" href="assets/css/settings.css?v=1">
   <script>
@@ -231,9 +232,26 @@
         <form id="note-form">
           <div class="note-head">
             <input type="text" id="note-title" placeholder="Title" aria-label="Title">
+            <button type="button" id="note-expand" class="icon-button" aria-label="Full screen"></button>
             <button type="button" id="note-pin" class="icon-button note-pin-toggle" aria-label="Show on Notes home"></button>
           </div>
-          <textarea id="note-text" rows="1" placeholder="Take a note..." aria-label="Note"></textarea>
+          <div id="note-format" class="note-format" role="toolbar" aria-label="Formatting">
+            <span id="note-format-tools" class="note-format-tools">
+              <button type="button" data-format="bold" title="Bold (Ctrl+B)" aria-label="Bold"><b>B</b></button>
+              <button type="button" data-format="italic" title="Italic (Ctrl+I)" aria-label="Italic"><i>I</i></button>
+              <button type="button" data-format="strike" title="Strikethrough" aria-label="Strikethrough"><s>S</s></button>
+              <button type="button" data-format="heading" title="Heading" aria-label="Heading">H</button>
+              <button type="button" data-format="bullet" title="Bulleted list" aria-label="Bulleted list">•</button>
+              <button type="button" data-format="number" title="Numbered list" aria-label="Numbered list">1.</button>
+              <button type="button" data-format="task" title="Checkbox" aria-label="Checkbox">☐</button>
+              <button type="button" data-format="quote" title="Quote" aria-label="Quote">❝</button>
+              <button type="button" data-format="code" title="Code" aria-label="Code">&lt;/&gt;</button>
+              <button type="button" data-format="link" title="Link (Ctrl+K)" aria-label="Link">🔗</button>
+            </span>
+            <button type="button" id="note-preview-toggle" class="note-preview-toggle" aria-pressed="false">Preview</button>
+          </div>
+          <textarea id="note-text" rows="1" placeholder="Take a note... (Markdown works: **bold**, # heading, - list)" aria-label="Note"></textarea>
+          <div id="note-preview" class="note-preview md" title="Click to edit" hidden></div>
           <div id="note-items" class="note-items"></div>
           <div id="note-when" class="note-when" hidden>
             <span>On calendar</span>

@@ -52,6 +52,8 @@ const ICONS = {
 	palette: "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
 	close: "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
 	add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+	expand: "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z",
+	collapse: "M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z",
 };
 
 function icon(name, size = 18) {
@@ -272,7 +274,14 @@ class Notebook {
 			if (doneCount) more.push(`${doneCount} ticked`);
 			if (more.length) card.append(el("p", { class: "note-card-more" }, "+ " + more.join(", ")));
 		} else if (note.text) {
-			card.append(el("p", { class: "note-card-text" }, note.text));
+			// Long notes are cut short on the card; the editor shows the whole note.
+			const long = note.text.split("\n").length > 14 || note.text.length > 900;
+			const text = el("div", { class: "note-card-text md" + (long ? " long" : "") });
+			text.append(renderMarkdown(note.text));
+			// Links open in a new tab rather than opening the note.
+			text.querySelectorAll("a").forEach(link => link.addEventListener("click", event => event.stopPropagation()));
+			card.append(text);
+			if (long) card.append(el("p", { class: "note-card-more" }, "Open to read the whole note"));
 		}
 		const chips = [];
 		if (note.calendar && note.due) chips.push(el("span", { class: "chip small" }, icon("calendar", 12), taskSummary(note)));
@@ -317,6 +326,8 @@ class Notebook {
 		this._part("edited").textContent = this.draft.updatedAt
 			? "Edited " + new Date(this.draft.updatedAt).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
 			: "";
+		// A note that already uses formatting opens showing it; new and plain notes open for typing.
+		this.previewing = !isNew && this.draft.type !== "list" && hasMarkdown(this.draft.text);
 		this._renderDraft();
 		this.dialog.showModal();
 		this._autosize();
@@ -331,8 +342,20 @@ class Notebook {
 		const isList = draft.type === "list";
 		this.dialog.dataset.color = draft.color;
 		const text = this._part("text");
-		text.hidden = isList;
+		const previewing = !isList && this.previewing;
+		text.hidden = isList || previewing;
 		if (!isList) text.value = draft.text;
+		this._part("format").hidden = isList;
+		this._part("format-tools").hidden = previewing;
+		const toggle = this._part("preview-toggle");
+		toggle.textContent = previewing ? "Edit" : "Preview";
+		toggle.setAttribute("aria-pressed", String(previewing));
+		const preview = this._part("preview");
+		preview.hidden = !previewing;
+		if (previewing) {
+			preview.replaceChildren(renderMarkdown(draft.text));
+			if (!draft.text.trim()) preview.append(el("p", { class: "empty-state" }, "Nothing written yet."));
+		}
 		this._part("items").hidden = !isList;
 		if (isList) this._renderItems();
 
@@ -487,6 +510,20 @@ class Notebook {
 
 	_bindEditor() {
 		this._part("pin").append(icon("pin", 20));
+		// Full screen, for writing long notes. Remembered on this device.
+		const setExpanded = on => {
+			this.dialog.classList.toggle("expanded", on);
+			const button = this._part("expand");
+			button.replaceChildren(icon(on ? "collapse" : "expand", 20));
+			button.setAttribute("aria-pressed", String(on));
+			button.title = button.ariaLabel = on ? "Exit full screen" : "Full screen";
+			try { localStorage.setItem("note_expanded", on ? "1" : ""); } catch { /* not remembered */ }
+			this._autosize();
+		};
+		let expanded = false;
+		try { expanded = localStorage.getItem("note_expanded") === "1"; } catch { /* default */ }
+		setExpanded(expanded);
+		this._part("expand").addEventListener("click", () => setExpanded(!this.dialog.classList.contains("expanded")));
 		this._part("color-button").append(icon("palette", 20));
 		this._part("label-button").append(icon("label", 20));
 		this._part("settings").append(icon("more", 20));
@@ -514,6 +551,7 @@ class Notebook {
 			this.draft.text = event.target.value;
 			this._autosize();
 		});
+		this._bindFormatting();
 		this._part("labels").addEventListener("input", event => {
 			this.draft.labels = parseLabels(event.target.value);
 			this._renderDraft();
@@ -580,6 +618,73 @@ class Notebook {
 		});
 		// Every way of closing the editor (Close, Escape, backdrop) saves the note.
 		this.dialog.addEventListener("close", () => this._saveDraft());
+	}
+
+	/* The formatting toolbar, Ctrl+B / I / K, and switching between writing and the formatted view. */
+	_bindFormatting() {
+		const text = this._part("text");
+		const setPreview = on => {
+			this.previewing = on;
+			this._renderDraft();
+			if (!on) text.focus();
+		};
+		this._part("preview-toggle").addEventListener("click", () => setPreview(!this.previewing));
+		// Clicking the formatted text goes back to editing, except on a link or inside a selection.
+		this._part("preview").addEventListener("click", event => {
+			if (event.target.closest("a") || String(getSelection())) return;
+			setPreview(false);
+		});
+		this._part("format-tools").addEventListener("click", event => {
+			const button = event.target.closest("[data-format]");
+			if (button) this._format(button.dataset.format);
+		});
+		text.addEventListener("keydown", event => {
+			if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
+			const format = { b: "bold", i: "italic", k: "link" }[event.key.toLowerCase()];
+			if (!format) return;
+			event.preventDefault();
+			this._format(format);
+		});
+	}
+
+	/* Apply one toolbar action to the selection in the note text, as Markdown. */
+	_format(kind) {
+		const text = this._part("text");
+		const { selectionStart: start, selectionEnd: end, value } = text;
+		const selected = value.slice(start, end);
+		const wrap = { bold: "**", italic: "*", strike: "~~", code: "`" }[kind];
+		const prefix = { heading: "## ", bullet: "- ", number: "1. ", task: "- [ ] ", quote: "> " }[kind];
+		text.focus();
+		if (wrap) {
+			if (kind === "code" && selected.includes("\n")) {
+				text.setRangeText("```\n" + selected + "\n```", start, end, "select");
+			} else {
+				text.setRangeText(wrap + selected + wrap, start, end, "end");
+				// With nothing selected, leave the cursor between the markers, ready to type.
+				if (!selected) text.setSelectionRange(start + wrap.length, start + wrap.length);
+				else text.setSelectionRange(start + wrap.length, end + wrap.length);
+			}
+		} else if (prefix) {
+			// Applies to every line the selection touches; applying it again takes it off.
+			const lineStart = start ? value.lastIndexOf("\n", start - 1) + 1 : 0;
+			const lineEnd = value.indexOf("\n", end) < 0 ? value.length : value.indexOf("\n", end);
+			const lines = value.slice(lineStart, lineEnd).split("\n");
+			const marker = kind === "number" ? /^\d+[.)] / : new RegExp("^" + prefix.replace(/[[\]]/g, "\\$&"));
+			const remove = lines.every(line => marker.test(line));
+			const changed = lines.map((line, index) => {
+				if (remove) return line.replace(marker, "");
+				const bare = line.replace(/^(#{1,6} |[-*+] \[[ xX]\] |[-*+] |\d+[.)] |> )/, "");
+				return (kind === "number" ? `${index + 1}. ` : prefix) + bare;
+			}).join("\n");
+			text.setRangeText(changed, lineStart, lineEnd, "end");
+		} else if (kind === "link") {
+			const label = selected || "link text";
+			text.setRangeText(`[${label}](https://)`, start, end, "end");
+			// Select the address so it can be pasted over.
+			const urlAt = start + label.length + 3;
+			text.setSelectionRange(urlAt, urlAt + "https://".length);
+		}
+		text.dispatchEvent(new Event("input"));
 	}
 
 	_saveDraft() {
