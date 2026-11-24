@@ -5,14 +5,21 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta name="description"
-    content="Minuet is a minimalist productivity app designed to help you organize tasks, manage time precisely, and find your daily work rhythm.">
-  <link rel="icon" type="image/x-icon" href="assets/images/favicon.svg" />
-  <title class="timer-display">Minuet: a minimalist productivity app</title>
+    content="Minuet is a Pomodoro timer, notes with Markdown and checklists, and a calendar for your to-dos and events. Sign in to sync them across your devices.">
+  <link rel="icon" type="image/svg+xml" href="assets/images/favicon.svg" />
+  <!-- Installed as an app (PWA): its name and icons come from the manifest. -->
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="apple-touch-icon" href="assets/images/apple-touch-icon.png">
+  <meta name="application-name" content="Minuet">
+  <meta name="apple-mobile-web-app-title" content="Minuet">
+  <meta name="theme-color" content="#f3f3f1" media="(prefers-color-scheme: light)">
+  <meta name="theme-color" content="#1c1c1c" media="(prefers-color-scheme: dark)">
+  <title>Minuet: Pomodoro timer, notes and calendar</title>
   <meta name="color-scheme" content="light dark">
   <!-- Not deferred: sets the theme before the page is drawn. -->
-  <script src="js/theme.js?v=1"></script>
+  <script src="js/theme.js?v=2"></script>
   <script src="js/config.js?v=2" defer></script>
-  <script src="js/app.js?v=7" defer></script>
+  <script src="js/app.js?v=8" defer></script>
   <script src="js/pomodoro.js?v=3" defer></script>
   <script src="js/signin.js?v=5" defer></script>
   <script src="js/sync.js?v=5" defer></script>
@@ -25,13 +32,13 @@
   <script src="js/diary.js?v=2" defer></script>
   <script src="js/calendar.js?v=4" defer></script>
   <script src="js/settings.js?v=2" defer></script>
-  <link rel="stylesheet" href="assets/css/styles.css?v=5">
-  <link rel="stylesheet" href="assets/css/light_theme.css?v=5">
-  <link rel="stylesheet" href="assets/css/dark_theme.css?v=4">
-  <link rel="stylesheet" href="assets/css/main_page.css?v=11">
-  <link rel="stylesheet" href="assets/css/notebook.css?v=9">
-  <link rel="stylesheet" href="assets/css/calendar.css?v=5">
-  <link rel="stylesheet" href="assets/css/settings.css?v=1">
+  <link rel="stylesheet" href="assets/css/styles.css?v=6">
+  <link rel="stylesheet" href="assets/css/light_theme.css?v=6">
+  <link rel="stylesheet" href="assets/css/dark_theme.css?v=5">
+  <link rel="stylesheet" href="assets/css/main_page.css?v=13">
+  <link rel="stylesheet" href="assets/css/notebook.css?v=10">
+  <link rel="stylesheet" href="assets/css/calendar.css?v=6">
+  <link rel="stylesheet" href="assets/css/settings.css?v=2">
   <script>
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {

@@ -6,13 +6,13 @@
 
 .navbar {
   flex: none;
-  background-color: var(--bg-card);
+  background-color: var(--surface);
+  border-bottom: 1px solid var(--border-soft);
   display: flex;
   align-items: center;
   gap: 1rem;
   padding: 0 1.5rem;
   height: 48px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   position: relative;
   z-index: 10;
 }
@@ -84,11 +84,12 @@
   text-decoration: underline;
 }
 
+/* A raised piece of the page's surface (see "Soft surfaces" in styles.css). */
 .panel {
-  background-color: var(--bg-card);
-  border-radius: 10px;
-  padding: 1rem 1.25rem;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+  background-color: var(--surface);
+  border-radius: 20px;
+  padding: 1.1rem 1.35rem;
+  box-shadow: var(--raised);
 }
 
 /* ---------- Pomodoro view ---------- */
@@ -109,7 +110,8 @@
   cursor: pointer;
   padding: 0.35rem 0.75rem;
   border: none;
-  border-radius: 4px;
+  border-radius: 8px;
+  background-color: transparent;
   font-size: 0.9rem;
 }
 
@@ -155,12 +157,23 @@
 .pomodoro-card {
   text-align: center;
   min-width: 16rem;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem 2rem 1.75rem;
+  border-radius: 24px;
 }
 
+/* The timer is a raised dial with a pressed-in ring. */
 #pomodoro-timer-display {
-  margin: 0.75rem 0 1rem;
-  font-size: 4rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 13rem;
+  height: 13rem;
+  margin: 1.5rem auto 1.75rem;
+  border-radius: 50%;
+  background-color: var(--surface);
+  box-shadow: 12px 12px 26px var(--shadow-dark), -12px -12px 26px var(--shadow-light),
+    inset 0 0 0 10px var(--surface), inset 6px 6px 14px var(--shadow-dark), inset -6px -6px 14px var(--shadow-light);
+  font-size: 3.4rem;
   font-weight: 600;
   font-variant-numeric: tabular-nums;
 }
@@ -193,7 +206,7 @@
 }
 
 .pomodoro-durations button:disabled:not([aria-pressed="true"]):hover {
-  background-color: var(--bg-card);
+  background-color: transparent;
 }
 
 .pomodoro-task select {

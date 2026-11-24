@@ -4,7 +4,7 @@ import vm from 'node:vm';
 import { readFileSync } from 'node:fs';
 
 // Runs the real js/theme.js with a fake localStorage, documentElement and OS dark-mode query.
-function loadTheme({ saved = null, systemDark = false, storageThrows = false } = {}) {
+function loadTheme({ saved = null, systemDark = false, storageThrows = false, hash = "" } = {}) {
     const store = new Map(saved ? [['theme', saved]] : []);
     const listeners = [];
     const media = {
@@ -24,6 +24,7 @@ function loadTheme({ saved = null, systemDark = false, storageThrows = false } =
             addEventListener() {},
         },
         CustomEvent: class { constructor(type, init) { this.detail = init.detail; } },
+        location: { hash },
     };
     sandbox.window = { matchMedia: () => media, addEventListener() {} };
     vm.runInNewContext(readFileSync('js/theme.js', 'utf8'), sandbox);
@@ -64,4 +65,9 @@ test('ignores unknown values, and works when storage is blocked', () => {
     assert.equal(t.root.dataset.theme, 'dark');
     t.theme.set('nope');
     assert.equal(t.theme.choice, 'dark');
+});
+
+test('records the page being opened, so its colours apply from the first paint', () => {
+    assert.strictEqual(loadTheme({ hash: '#/notes' }).root.dataset.page, 'notes');
+    assert.strictEqual(loadTheme().root.dataset.page, 'pomodoro');
 });

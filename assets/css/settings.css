@@ -20,6 +20,11 @@
   min-width: 0;
 }
 
+/* Switches keep their own width rather than stretching across the card. */
+.settings-card .segmented {
+  align-self: flex-start;
+}
+
 .settings-card > p,
 .settings-card small {
   margin: 0;

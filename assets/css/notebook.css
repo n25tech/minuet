@@ -25,10 +25,9 @@
   align-items: center;
   width: min(36rem, 100%);
   padding: 0.2rem 0.4rem 0.2rem 0;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background-color: var(--bg-card);
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.12);
+  border-radius: 14px;
+  background-color: var(--surface);
+  box-shadow: var(--pressed);
 }
 
 .note-composer-text {
@@ -79,27 +78,28 @@ button.icon-button:has(.icon) {
 /* Masonry-style columns, like Keep. */
 .notes-grid {
   columns: 16rem;
-  column-gap: 0.9rem;
+  column-gap: 1.4rem;
 }
 
 .notes-grid .empty-state {
   column-span: all;
 }
 
+/* Each note is a raised piece of surface in its own tint. */
 .note-card {
   position: relative;
   break-inside: avoid;
-  margin-bottom: 0.9rem;
-  padding: 0.8rem 0.9rem;
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  background-color: var(--note-bg, var(--bg-card));
+  margin-bottom: 1.4rem;
+  padding: 0.85rem 0.95rem;
+  border-radius: 18px;
+  background-color: var(--note-bg, var(--surface));
+  box-shadow: 7px 7px 16px var(--shadow-dark), -7px -7px 16px var(--shadow-light);
   cursor: pointer;
   overflow: hidden;
 }
 
 .note-card:hover {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  box-shadow: 9px 9px 20px var(--shadow-dark), -9px -9px 20px var(--shadow-light);
 }
 
 .note-card-title {

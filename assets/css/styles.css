@@ -293,3 +293,66 @@ textarea {
 .toast button:hover {
   background-color: color-mix(in srgb, var(--toast-text) 15%, transparent);
 }
+
+/* ---------- Soft surfaces ----------
+ * The page and its panels are one surface (--surface, from the theme), shaped with two shadows:
+ * dark on the bottom right and light on the top left. Raised things stand out of the surface,
+ * pressed things (fields, switch tracks) sink into it. */
+:root {
+  --raised: 8px 8px 18px var(--shadow-dark), -8px -8px 18px var(--shadow-light);
+  --raised-small: 3px 3px 8px var(--shadow-dark), -3px -3px 8px var(--shadow-light);
+  --pressed: inset 3px 3px 7px var(--shadow-dark), inset -3px -3px 7px var(--shadow-light);
+}
+
+/* Switches: a pressed-in track with the chosen option raised out of it. */
+.segmented {
+  gap: 4px;
+  padding: 4px;
+  border-radius: 12px;
+  background-color: var(--surface);
+  box-shadow: var(--pressed);
+}
+
+.segmented button,
+.segmented button:first-child,
+.segmented button:last-child {
+  margin: 0;
+  border: none;
+  border-radius: 9px;
+  background-color: transparent;
+}
+
+.segmented button[aria-pressed="true"] {
+  border: none;
+  background-color: var(--surface);
+  color: var(--btn-primary-strong);
+  box-shadow: var(--raised-small);
+}
+
+/* Fields on the page are pressed into it (dialogs keep plain boxes on their plain ground). */
+.view :is(input[type="text"], input[type="search"], input[type="date"], input[type="time"], select, textarea):not(dialog *) {
+  border-color: transparent;
+  border-radius: 10px;
+  background-color: var(--surface);
+  box-shadow: var(--pressed);
+}
+
+input[type="checkbox"] {
+  accent-color: var(--btn-primary-strong);
+}
+
+/* The page's main buttons are raised, and press in when clicked. */
+:is(.view button.primary, .pomodoro-card > button, .cal-toolbar > button:not(.icon-button)):not(dialog *) {
+  padding: 0.45rem 1.15rem;
+  border-color: transparent;
+  border-radius: 10px;
+  box-shadow: var(--raised-small);
+}
+
+:is(.pomodoro-card > button, .cal-toolbar > button):not(.primary, .icon-button) {
+  background-color: var(--surface);
+}
+
+:is(.view button.primary, .pomodoro-card > button, .cal-toolbar > button:not(.icon-button)):not(dialog *):active {
+  box-shadow: var(--pressed);
+}

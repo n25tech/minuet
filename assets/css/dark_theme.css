@@ -2,46 +2,47 @@
 [data-theme="dark"] {
   color-scheme: dark;
 
-  --bg-app: #151a17;
-  --bg-card: #1f2622;
+  --surface: #1c1c1c;
+  --shadow-dark: #0d0d0d;
+  --shadow-light: #2a2a2a;
 
-  --text-main: #e2e8e4;
-  --text-muted: #9aa8a2;
+  --bg-app: var(--surface);
+  --bg-card: #232323;
 
-  --bg-hover: #2a332e;
-  --bg-selected: #2d4a3f;
-  --border: #36423c;
-  --border-soft: rgba(255, 255, 255, 0.12);
+  --text-main: #ececec;
+  --text-muted: #a6a6a6;
+
+  --bg-hover: rgba(255, 255, 255, 0.06);
+  --bg-selected: #2b3a1f;
+  --border: #363636;
+  --border-soft: rgba(255, 255, 255, 0.1);
   --danger: #f2a7a2;
   --success: #4cc27a;
 
-  --btn-primary: #8fae58;
   /* Light moss with dark text reads better on a dark page than white on moss. */
+  --btn-primary: #9cc05a;
   --btn-primary-strong: #9cc05a;
   --btn-text: #151a10;
 
-  --overlay-soft: rgba(255, 255, 255, 0.08);
+  --overlay-soft: rgba(255, 255, 255, 0.07);
   --backdrop: rgba(0, 0, 0, 0.6);
-  --toast-bg: #39453f;
-  --toast-text: #f2f5f3;
+  --toast-bg: #3a3a3a;
+  --toast-text: #f2f2f2;
 
-  --line: #2c3631;
-  --bg-subtle: #1a201d;
-  --bg-subtle-hover: #252d29;
-  --bg-today: #222e28;
-  --mix-base: #1f2622;
+  --line: #2c2c2c;
+  --bg-subtle: #1f1f1f;
+  --bg-subtle-hover: #282828;
+  --bg-today: #212819;
+  --mix-base: #232323;
 
-  --note-default: #1f2622;
-  --note-red: #4a2a28;
-  --note-orange: #4a3421;
-  --note-yellow: #474021;
-  --note-green: #2e3f25;
-  --note-teal: #1f3f39;
-  --note-blue: #233552;
-  --note-purple: #392c4c;
-
-  --timer-focus: #8fae58;
-  --timer-break: #2d4a3f;
+  --note-default: var(--surface);
+  --note-red: #3a2c2a;
+  --note-orange: #3a3028;
+  --note-yellow: #37332a;
+  --note-green: #2b3229;
+  --note-teal: #273230;
+  --note-blue: #29303d;
+  --note-purple: #312c3a;
 
   --code-bg: rgba(255, 255, 255, 0.07);
   --code-keyword: #ff7b72;
@@ -55,4 +56,11 @@
   --code-added-bg: rgba(46, 160, 67, 0.15);
   --code-removed: #ffdcd7;
   --code-removed-bg: rgba(248, 81, 73, 0.15);
+}
+
+[data-theme="dark"][data-page="pomodoro"] {
+  --surface: #1c2219;
+  --shadow-dark: #0f130d;
+  --shadow-light: #29321f;
+  --border: #33402c;
 }

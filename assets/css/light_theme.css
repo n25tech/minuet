@@ -1,60 +1,60 @@
-/* Light theme (the default). Every colour the app uses comes from these variables. */
+/*
+ * Light theme (the default). Every colour the app uses comes from these variables.
+ * The look is soft (neumorphic): the page and the panels on it are one surface, raised or pressed
+ * in with a dark shadow on one side and a light one on the other (--shadow-dark / --shadow-light,
+ * see "Soft surfaces" in styles.css). Colour comes from the notes and one green accent; the
+ * Pomodoro page takes a soft green surface of its own.
+ */
 :root,
 [data-theme="light"] {
   color-scheme: light;
 
-  --slate-dark: #545F66;
-  --slate-muted: #829399;
-  --mint-light: #D0F4EA;
-  --lime-light: #E8FCC2;
-  --moss-green: #B1CC74;
+  --surface: #f3f3f1;
+  --shadow-dark: #d6d6d2;
+  --shadow-light: #ffffff;
 
-  /* UI Mapping */
-  --bg-app: var(--lime-light);
+  --bg-app: var(--surface);
+  /* Content that needs a plain ground: the calendar grid, menus, dialogs. */
   --bg-card: #ffffff;
 
-  --text-main: var(--slate-dark);
-  --text-muted: var(--slate-muted);
+  --text-main: #1f2328;
+  /* 6:1 on the page, 5.5:1 on the Pomodoro green, 5:1 or more on note tints. */
+  --text-muted: #565d66;
 
-  --bg-hover: #f1f5ee;
-  --bg-selected: var(--mint-light);
-  --border: #cfd8d3;
-  --border-soft: rgba(0, 0, 0, 0.12);
+  --bg-hover: rgba(0, 0, 0, 0.045);
+  --bg-selected: #e3eed5;
+  --border: #d9d9d5;
+  --border-soft: rgba(0, 0, 0, 0.09);
   --danger: #b3261e;
   --success: #2e9d57;
 
-  --btn-primary: var(--moss-green);
-  /* Darker moss: white text on --moss-green itself is too faint to read. */
-  --btn-primary-strong: #5f7f2a;
+  --btn-primary: #4f7a1f;
+  --btn-primary-strong: #4f7a1f;
   --btn-text: #ffffff;
 
   /* Translucent wash over a coloured card (chips, toggles on notes). */
-  --overlay-soft: rgba(255, 255, 255, 0.6);
-  --backdrop: rgba(40, 50, 55, 0.45);
-  --toast-bg: #323b40;
+  --overlay-soft: rgba(255, 255, 255, 0.55);
+  --backdrop: rgba(30, 32, 34, 0.45);
+  --toast-bg: #2c3034;
   --toast-text: #ffffff;
 
   /* Calendar */
-  --line: #dfe5e1;
-  --bg-subtle: #f5f6f4;
-  --bg-subtle-hover: #fafcf8;
-  --bg-today: #fafcf5;
+  --line: #e4e4e0;
+  --bg-subtle: #f7f7f5;
+  --bg-subtle-hover: #fbfbfa;
+  --bg-today: #f5f9ee;
   /* What light event tints are mixed towards. */
   --mix-base: #ffffff;
 
-  /* Note colours */
-  --note-default: #ffffff;
-  --note-red: #fad2cf;
-  --note-orange: #fde0c2;
-  --note-yellow: #fff3b0;
-  --note-green: #d9f2c4;
-  --note-teal: #c9efe6;
-  --note-blue: #d2e3fc;
-  --note-purple: #e6d5f7;
-
-  /* Dynamic Timer States */
-  --timer-focus: var(--moss-green);
-  --timer-break: var(--mint-light);
+  /* Note colours: muted tints close to the surface, so a coloured note is still a soft surface. */
+  --note-default: var(--surface);
+  --note-red: #f0dcd8;
+  --note-orange: #f1e1d0;
+  --note-yellow: #efe7cb;
+  --note-green: #dfe8d6;
+  --note-teal: #d7e8e3;
+  --note-blue: #dce4ee;
+  --note-purple: #e4dfee;
 
   /* Code colouring in notes (highlight.js) */
   --code-bg: rgba(27, 31, 36, 0.06);
@@ -69,4 +69,12 @@
   --code-added-bg: #dafbe1;
   --code-removed: #82071e;
   --code-removed-bg: #ffebe9;
+}
+
+/* The Pomodoro page is a soft green surface (the page sets data-page on <html>). */
+[data-theme="light"][data-page="pomodoro"] {
+  --surface: #e4ecdb;
+  --shadow-dark: #c4ceb9;
+  --shadow-light: #fbfff7;
+  --border: #c9d3be;
 }
