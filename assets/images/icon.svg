@@ -1,6 +1,11 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="-5.5 -18.5 157 157">
-  <!-- The favicon's ">_" prompt, centred on a square for app icons. -->
-  <rect x="-5.5" y="-18.5" width="157" height="157" fill="#262626"/>
-  <path fill="#ffffff" d="m 26.251294,36.05737 v 8.4796 l 29.598558,10.07479 -29.808475,10.41061 v 8.64753 l 40.934172,-14.86031 v -7.64005 z"/>
-  <rect fill="#f9f9f9" width="47.756538" height="4.8694787" x="72.223518" y="79.63081"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Minuet: a Pomodoro dial three-quarters round (a minuet is in 3/4 time) around a note. -->
+  <rect width="512" height="512" rx="112" fill="#4f7a1f"/>
+  <circle cx="256" cy="256" r="150" fill="none" stroke="#ffffff" stroke-opacity=".2" stroke-width="40"/>
+  <path d="M256 106A150 150 0 1 1 106 256" fill="none" stroke="#f3f3f1" stroke-width="40" stroke-linecap="round"/>
+  <g fill="#f3f3f1" transform="translate(6 -4)">
+    <ellipse cx="236" cy="306" rx="36" ry="27" transform="rotate(-22 236 306)"/>
+    <rect x="257" y="176" width="15" height="128" rx="4"/>
+    <path d="M262 176c0 36 58 44 50 102c24-60-36-74-36-102z"/>
+  </g>
 </svg>
