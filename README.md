@@ -13,7 +13,9 @@ A productivity app written in vanilla js.
 * **Notes** (`#/notes`) - Keep-style notes with colours, labels and search. The options menu at the bottom
   of a note turns it into a checklist (and back) or adds the note to the calendar; each checklist entry
   can also be added to the calendar on its own. The Notes home only shows the notes you pin to it;
-  "All notes" lists everything.
+  "All notes" lists everything. Plain notes can be long and use Markdown (headings, **bold**, lists,
+  `- [ ]` checkboxes, quotes, code, links), typed or added with the toolbar, and are shown formatted;
+  the editor can go full screen for long writing.
 * **Calendar** (`#/calendar`) - month, week and day views, all-day and repeating events
   (daily / weekly / monthly / yearly), plus the notes and checklist entries you added to the calendar.
 * Google sign-in to sync everything across devices; signed out, it all lives in localStorage.

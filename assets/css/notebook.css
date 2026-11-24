@@ -110,17 +110,112 @@ button.icon-button:has(.icon) {
 
 .note-card-text {
   margin: 0;
-  white-space: pre-wrap;
   overflow-wrap: anywhere;
-  display: -webkit-box;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 10;
-  line-clamp: 10;
+}
+
+/* Long notes are cut short on the card and fade out; the editor shows them in full. */
+.note-card-text.long {
+  max-height: 21rem;
   overflow: hidden;
+  -webkit-mask-image: linear-gradient(to bottom, #000 75%, transparent);
+  mask-image: linear-gradient(to bottom, #000 75%, transparent);
 }
 
 .note-card-title + .note-card-text:empty {
   display: none;
+}
+
+/* ---------- Formatted (Markdown) note text, on cards and in the editor's preview ---------- */
+.md {
+  line-height: 1.45;
+}
+
+.md > :first-child { margin-top: 0; }
+.md > :last-child { margin-bottom: 0; }
+
+.md p,
+.md ul,
+.md ol,
+.md blockquote,
+.md pre {
+  margin: 0 0 0.6em;
+}
+
+.md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
+  margin: 0.8em 0 0.35em;
+  line-height: 1.25;
+}
+
+.md h1 { font-size: 1.45em; }
+.md h2 { font-size: 1.25em; }
+.md h3 { font-size: 1.1em; }
+.md h4, .md h5, .md h6 { font-size: 1em; }
+
+.note-card-text.md h1 { font-size: 1.2em; }
+.note-card-text.md h2 { font-size: 1.1em; }
+.note-card-text.md h3 { font-size: 1em; }
+
+.md ul,
+.md ol {
+  padding-left: 1.4em;
+}
+
+.md li > ul,
+.md li > ol {
+  margin: 0.15em 0 0;
+}
+
+.md li.md-task {
+  list-style: none;
+  margin-left: -1.3em;
+}
+
+.md li.md-task input {
+  margin: 0 0.4em 0 0;
+  vertical-align: middle;
+}
+
+.md li.md-task.done {
+  color: var(--text-muted);
+  text-decoration: line-through;
+}
+
+.md blockquote {
+  padding-left: 0.8em;
+  border-left: 3px solid var(--border);
+  color: var(--text-muted);
+}
+
+.md code {
+  padding: 0.05em 0.3em;
+  border-radius: 4px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.9em;
+  background-color: var(--overlay-soft);
+}
+
+.md pre {
+  padding: 0.6em 0.75em;
+  border-radius: 6px;
+  overflow-x: auto;
+  background-color: var(--overlay-soft);
+}
+
+.md pre code {
+  padding: 0;
+  background: none;
+  white-space: pre;
+}
+
+.md hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 0.8em 0;
+}
+
+.md a {
+  color: var(--btn-primary-strong);
+  overflow-wrap: anywhere;
 }
 
 .note-card-items {
@@ -211,14 +306,89 @@ button.icon-button:has(.icon) {
 
 /* ---------- Editor ---------- */
 .note-dialog {
+  width: min(48rem, calc(100vw - 2rem));
   background-color: var(--note-bg, var(--bg-card));
   overflow: visible;
+}
+
+/* Full screen, for long notes: the text fills the space and the form scrolls. */
+.note-dialog.expanded {
+  width: calc(100vw - 2rem);
+  max-width: 72rem;
+  height: calc(100vh - 2rem);
+}
+
+.note-dialog.expanded form {
+  height: 100%;
+  box-sizing: border-box;
+}
+
+.note-dialog.expanded #note-text,
+.note-dialog.expanded #note-preview {
+  flex: 1 0 auto;
+}
+
+/* Formatting toolbar above the note text, with Preview / Edit at its end. */
+.note-format {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0 -0.3rem;
+}
+
+.note-format[hidden],
+.note-format-tools[hidden] {
+  display: none;
+}
+
+.note-format-tools {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.1rem;
+  flex: 1;
+  min-width: 0;
+}
+
+.note-format-tools button,
+.note-preview-toggle {
+  min-width: 2rem;
+  height: 2rem;
+  padding: 0 0.45rem;
+  border: none;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-muted);
+  font-size: 0.9rem;
+}
+
+.note-format-tools button:hover,
+.note-preview-toggle:hover {
+  background-color: var(--overlay-soft);
+  color: var(--text-main);
+}
+
+.note-preview-toggle {
+  margin-left: auto;
+  font-weight: 600;
+}
+
+.note-preview {
+  min-height: 2rem;
+  padding: 0.15rem 0;
+  overflow-wrap: anywhere;
+  cursor: text;
 }
 
 .note-dialog form {
   max-height: calc(100vh - 2rem);
   overflow-y: auto;
   gap: 0.6rem;
+  padding-bottom: 0;
+}
+
+/* Long notes scroll the whole form rather than being squeezed into it. */
+.note-dialog form > * {
+  flex-shrink: 0;
 }
 
 /* Title, text and entries are typed straight onto the note, without boxes. */
@@ -245,10 +415,11 @@ button.icon-button:has(.icon) {
   font-weight: 600;
 }
 
+/* The text grows with what's typed; the form scrolls, so long notes have no inner scrollbar. */
 .dialog #note-text {
   min-height: 2rem;
-  max-height: 55vh;
   resize: none;
+  overflow: hidden;
   line-height: 1.45;
 }
 
@@ -367,11 +538,17 @@ button.icon-button:has(.icon) {
 }
 
 /* Bottom bar: colour, labels, options menu ... edited time, Close. */
+/* Stays at the bottom of the editor while a long note scrolls under it. */
 .note-bar {
+  position: sticky;
+  bottom: 0;
+  z-index: 4;
   display: flex;
   align-items: center;
   gap: 0.15rem;
-  margin: 0.2rem -0.5rem -0.4rem;
+  margin: 0.2rem -1.25rem 0;
+  padding: 0.3rem 0.75rem 0.6rem;
+  background-color: var(--note-bg, var(--bg-card));
 }
 
 .note-edited {

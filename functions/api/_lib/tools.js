@@ -542,7 +542,7 @@ export const TOOLS = [
                 id: crypto.randomUUID(),
                 type: entries ? 'list' : 'text',
                 title: (text(args, 'title') || '').trim(),
-                text: entries ? '' : (text(args, 'text', { max: 20000 }) || ''),
+                text: entries ? '' : (text(args, 'text', { max: 200000 }) || ''),
                 items: (entries || []).map(entry => ({ id: crypto.randomUUID(), text: entry.trim(), done: false })),
                 color: choice(args, 'color', NOTE_COLORS) || 'default',
                 labels: labels(args) || [],
@@ -579,7 +579,7 @@ export const TOOLS = [
         run(ctx, args) {
             const id = text(args, 'id', { required: true });
             const title = text(args, 'title');
-            const body = text(args, 'text', { max: 20000 });
+            const body = text(args, 'text', { max: 200000 });
             const color = choice(args, 'color', NOTE_COLORS);
             const newLabels = labels(args);
             if (args.pinned_to_home !== undefined && typeof args.pinned_to_home !== 'boolean') throw new ToolError('“pinned_to_home” must be true or false.');
