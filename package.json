@@ -12,9 +12,15 @@
     "db:migrate:remote": "wrangler d1 migrations apply db --remote"
   },
   "devDependencies": {
+    "esbuild": "0.28.2",
     "wrangler": "4.129.1"
   },
   "engines": {
     "node": ">=22"
+  },
+  "dependencies": {
+    "dompurify": "3.5.0",
+    "highlight.js": "11.12.0",
+    "markdown-it": "15.0.3"
   }
 }

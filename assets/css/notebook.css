@@ -137,7 +137,8 @@ button.icon-button:has(.icon) {
 .md ul,
 .md ol,
 .md blockquote,
-.md pre {
+.md pre,
+.md table {
   margin: 0 0 0.6em;
 }
 
@@ -191,20 +192,74 @@ button.icon-button:has(.icon) {
   border-radius: 4px;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 0.9em;
-  background-color: var(--overlay-soft);
+  background-color: var(--code-bg);
 }
 
 .md pre {
   padding: 0.6em 0.75em;
   border-radius: 6px;
   overflow-x: auto;
-  background-color: var(--overlay-soft);
+  background-color: var(--code-bg);
 }
 
 .md pre code {
   padding: 0;
   background: none;
   white-space: pre;
+  font-size: 0.85em;
+}
+
+/* The language of a labelled code block, in its corner. */
+.md pre[data-language] {
+  position: relative;
+}
+
+.md pre[data-language]::before {
+  content: attr(data-language);
+  position: absolute;
+  top: 0.25em;
+  right: 0.5em;
+  font-size: 0.7em;
+  color: var(--text-muted);
+}
+
+/* Code colouring (highlight.js classes); the colours are in the theme files. */
+.hljs-keyword, .hljs-selector-tag, .hljs-doctag, .hljs-template-tag, .hljs-type { color: var(--code-keyword); }
+.hljs-string, .hljs-regexp, .hljs-meta .hljs-string, .hljs-char.escape_ { color: var(--code-string); }
+.hljs-number, .hljs-literal, .hljs-built_in, .hljs-symbol, .hljs-variable.constant_, .hljs-operator { color: var(--code-number); }
+.hljs-comment, .hljs-quote, .hljs-meta { color: var(--code-comment); }
+.hljs-comment, .hljs-quote { font-style: italic; }
+.hljs-title, .hljs-title.function_, .hljs-title.class_, .hljs-section { color: var(--code-title); }
+.hljs-attr, .hljs-attribute, .hljs-property, .hljs-variable, .hljs-params, .hljs-selector-class, .hljs-selector-id { color: var(--code-attr); }
+.hljs-name, .hljs-tag, .hljs-selector-pseudo, .hljs-bullet { color: var(--code-tag); }
+.hljs-addition { color: var(--code-added); background-color: var(--code-added-bg); }
+.hljs-deletion { color: var(--code-removed); background-color: var(--code-removed-bg); }
+.hljs-strong { font-weight: bold; }
+.hljs-emphasis { font-style: italic; }
+
+/* Tables */
+.md table {
+  display: block;
+  max-width: 100%;
+  overflow-x: auto;
+  margin: 0 0 0.6em;
+  border-collapse: collapse;
+}
+
+.md th,
+.md td {
+  padding: 0.3em 0.65em;
+  border: 1px solid var(--border);
+  text-align: left;
+}
+
+.md th {
+  background-color: var(--overlay-soft);
+}
+
+.md img {
+  max-width: 100%;
+  height: auto;
 }
 
 .md hr {
