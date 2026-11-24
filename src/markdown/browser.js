@@ -1,9 +1,11 @@
 /*
  * Browser entry, bundled by scripts/build.js into public/bundles/markdown-<hash>.js. The app's other
- * scripts are plain scripts, so this hands them renderMarkdown() and hasMarkdown() as globals.
+ * scripts are plain scripts, so this hands them renderMarkdown(), hasMarkdown(), formatEdit() and
+ * loadNoteEditor() as globals.
  */
 import DOMPurify from 'dompurify';
 import { markdownToHtml, hasMarkdown, useHighlighter, whenHighlightNeeded } from './core.js';
+import { formatEdit } from './format.js';
 
 // Code colouring is loaded the first time a note with code is shown; then everything formatted
 // is drawn again ("minuet:markdown-ready").
@@ -43,3 +45,6 @@ function renderMarkdown(text) {
 
 window.renderMarkdown = renderMarkdown;
 window.hasMarkdown = hasMarkdown;
+window.formatEdit = formatEdit;
+// The code editor for note text (src/editor/), loaded on its own; resolves to { createEditor }.
+window.loadNoteEditor = () => import('../editor/code-editor.js');

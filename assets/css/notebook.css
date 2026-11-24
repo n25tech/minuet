@@ -130,7 +130,8 @@ button.icon-button:has(.icon) {
   line-height: 1.45;
 }
 
-.md > :first-child { margin-top: 0; }
+.md > :first-child,
+.note-card-text.md > :first-child { margin-top: 0; }
 .md > :last-child { margin-bottom: 0; }
 
 .md p,
@@ -142,19 +143,55 @@ button.icon-button:has(.icon) {
   margin: 0 0 0.6em;
 }
 
+/* Headings: each level clearly smaller than the one above. H1 and H2 are underlined to start
+   sections, H3 and H4 are bold, H5 is small capitals and H6 a quiet label. */
 .md h1, .md h2, .md h3, .md h4, .md h5, .md h6 {
-  margin: 0.8em 0 0.35em;
+  margin: 1.4em 0 0.5em;
   line-height: 1.25;
+  font-weight: 700;
+  color: var(--text-main);
 }
 
-.md h1 { font-size: 1.45em; }
-.md h2 { font-size: 1.25em; }
-.md h3 { font-size: 1.1em; }
-.md h4, .md h5, .md h6 { font-size: 1em; }
+.md h1 {
+  font-size: 1.9em;
+  padding-bottom: 0.25em;
+  border-bottom: 2px solid var(--border);
+}
 
-.note-card-text.md h1 { font-size: 1.2em; }
-.note-card-text.md h2 { font-size: 1.1em; }
-.note-card-text.md h3 { font-size: 1em; }
+.md h2 {
+  font-size: 1.5em;
+  padding-bottom: 0.2em;
+  border-bottom: 1px solid var(--border-soft);
+}
+
+.md h3 { font-size: 1.25em; }
+.md h4 { font-size: 1.08em; }
+
+.md h5 {
+  font-size: 0.85em;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.md h6 {
+  font-size: 0.85em;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+
+/* Smaller on cards, but still in the same steps. */
+.note-card-text.md h1 { font-size: 1.45em; }
+.note-card-text.md h2 { font-size: 1.25em; }
+.note-card-text.md h3 { font-size: 1.1em; }
+.note-card-text.md h4 { font-size: 1em; }
+.note-card-text.md h1,
+.note-card-text.md h2,
+.note-card-text.md h3,
+.note-card-text.md h4,
+.note-card-text.md h5,
+.note-card-text.md h6 {
+  margin-top: 0.9em;
+}
 
 .md ul,
 .md ol {
@@ -393,7 +430,24 @@ button.icon-button:has(.icon) {
 }
 
 .note-body > #note-text,
+.note-body > #note-code,
 .note-body > #note-preview {
+  flex: 1 0 auto;
+}
+
+/* The code editor (CodeMirror) for the note text; it fills the space like the text box did. */
+#note-code {
+  display: flex;
+  flex-direction: column;
+  min-height: 2rem;
+  cursor: text;
+}
+
+#note-code[hidden] {
+  display: none;
+}
+
+#note-code .cm-editor {
   flex: 1 0 auto;
 }
 
@@ -415,6 +469,17 @@ button.icon-button:has(.icon) {
   height: 100%;
   min-height: 0;
   overflow-y: auto;
+}
+
+/* Side by side, the code editor scrolls inside its half. */
+#note-body.split > #note-code {
+  height: 100%;
+  min-height: 0;
+  overflow: hidden;
+}
+
+#note-body.split > #note-code .cm-editor {
+  height: 100%;
 }
 
 .note-body.split > #note-preview {
@@ -689,4 +754,10 @@ button.icon-button:has(.icon) {
 #note-split-toggle[aria-pressed="true"] {
   color: var(--text-main);
   background-color: var(--overlay-soft);
+}
+
+/* Done: saves and closes the note. */
+.note-done {
+  margin-left: 0.4rem;
+  padding: 0.35rem 1.1rem;
 }
