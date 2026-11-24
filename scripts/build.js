@@ -55,7 +55,7 @@ if (import.meta.url === `file://${process.argv[1]}`) {
 
     await rm('public', { recursive: true, force: true });
     await mkdir('public');
-    for (const path of ['index.html', 'js', 'assets', 'sw.js', '_headers']) {
+    for (const path of ['index.html', 'js', 'assets', 'sw.js', '_headers', 'manifest.webmanifest']) {
         await cp(path, `public/${path}`, { recursive: true });
     }
     await buildBundles();

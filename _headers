@@ -18,3 +18,8 @@
 # Bundles built by scripts/build.js have their content hash in the name, so they never change.
 /bundles/*
   Cache-Control: public, max-age=31536000, immutable
+
+# The web app manifest (name and icons when Minuet is installed as an app).
+/manifest.webmanifest
+  Content-Type: application/manifest+json
+  Cache-Control: public, max-age=0, must-revalidate
