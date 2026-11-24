@@ -49,8 +49,9 @@
   grid-template-columns: repeat(7, minmax(0, 1fr));
   grid-template-rows: auto repeat(6, minmax(0, 1fr));
   background-color: var(--bg-card);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  box-shadow: var(--raised);
   overflow: hidden;
 }
 
@@ -254,8 +255,9 @@
   display: flex;
   flex-direction: column;
   background-color: var(--bg-card);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: 1px solid transparent;
+  border-radius: 16px;
+  box-shadow: var(--raised);
   overflow: hidden;
 }
 

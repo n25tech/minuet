@@ -55,6 +55,8 @@ function currentView() {
 
 function showView() {
     const name = currentView();
+    // Lets the page's colours follow the view (the Pomodoro page has a surface of its own).
+    document.documentElement.dataset.page = name;
     document.querySelectorAll("[data-view]").forEach(section => { section.hidden = section.dataset.view !== name; });
     document.querySelectorAll("[data-nav]").forEach(link => {
         if (link.dataset.nav === name) link.setAttribute("aria-current", "page");

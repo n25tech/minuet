@@ -21,6 +21,9 @@
 
 	let choice = read();
 
+	// The view being opened, so its colours are right from the first paint (app.js keeps it up to date).
+	document.documentElement.dataset.page = location.hash.replace(/^#\/?/, "") || "pomodoro";
+
 	function apply() {
 		const theme = resolve(choice);
 		document.documentElement.dataset.theme = theme;
