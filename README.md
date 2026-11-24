@@ -15,7 +15,7 @@ A productivity app written in vanilla js.
   can also be added to the calendar on its own. The Notes home only shows the notes you pin to it;
   "All notes" lists everything. Plain notes can be long and use Markdown (headings, **bold**, lists,
   `- [ ]` checkboxes, quotes, code, links), typed or added with the toolbar, and are shown formatted;
-  the editor can go full screen for long writing.
+  an open note fills the screen, and on wide screens shows the formatted note side by side with the text.
 * **Calendar** (`#/calendar`) - month, week and day views, all-day and repeating events
   (daily / weekly / monthly / yearly), plus the notes and checklist entries you added to the calendar.
 * Google sign-in to sync everything across devices; signed out, it all lives in localStorage.

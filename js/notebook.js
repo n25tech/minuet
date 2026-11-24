@@ -52,8 +52,6 @@ const ICONS = {
 	palette: "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
 	close: "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
 	add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
-	expand: "M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z",
-	collapse: "M5 16h3v3h2v-5H5v2zm3-8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z",
 };
 
 function icon(name, size = 18) {
@@ -350,12 +348,16 @@ class Notebook {
 		const toggle = this._part("preview-toggle");
 		toggle.textContent = previewing ? "Edit" : "Preview";
 		toggle.setAttribute("aria-pressed", String(previewing));
-		const preview = this._part("preview");
-		preview.hidden = !previewing;
-		if (previewing) {
-			preview.replaceChildren(renderMarkdown(draft.text));
-			if (!draft.text.trim()) preview.append(el("p", { class: "empty-state" }, "Nothing written yet."));
-		}
+		// On a wide screen the formatted note can sit next to the text while typing.
+		const wide = this.wideScreen.matches;
+		const split = !isList && !previewing && wide && this.split;
+		const splitToggle = this._part("split-toggle");
+		splitToggle.hidden = isList || previewing || !wide;
+		splitToggle.setAttribute("aria-pressed", String(!!this.split));
+		this._part("body").classList.toggle("split", split);
+		this.dialog.classList.toggle("split", split);
+		this._part("preview").hidden = !(previewing || split);
+		this._renderPreview();
 		this._part("items").hidden = !isList;
 		if (isList) this._renderItems();
 
@@ -382,11 +384,25 @@ class Notebook {
 		this._autosize();
 	}
 
+	_renderPreview() {
+		const preview = this._part("preview");
+		if (preview.hidden || !this.draft) return;
+		preview.replaceChildren(renderMarkdown(this.draft.text));
+		if (!this.draft.text.trim()) preview.append(el("p", { class: "empty-state" }, "Nothing written yet."));
+	}
+
+	/* Grows the text with what's typed. A min-height, so it can also stretch to fill the editor or match the preview beside it. */
 	_autosize() {
 		const text = this._part("text");
 		if (text.hidden) return;
-		text.style.height = "auto";
-		text.style.height = `${text.scrollHeight + 2}px`;
+		text.style.height = "";
+		// Side by side, the text fills its half and scrolls instead of growing.
+		if (this._part("body").classList.contains("split")) {
+			text.style.minHeight = "";
+			return;
+		}
+		text.style.minHeight = "0";
+		text.style.minHeight = `${text.scrollHeight + 2}px`;
 	}
 
 	_focusItem(id) {
@@ -510,20 +526,6 @@ class Notebook {
 
 	_bindEditor() {
 		this._part("pin").append(icon("pin", 20));
-		// Full screen, for writing long notes. Remembered on this device.
-		const setExpanded = on => {
-			this.dialog.classList.toggle("expanded", on);
-			const button = this._part("expand");
-			button.replaceChildren(icon(on ? "collapse" : "expand", 20));
-			button.setAttribute("aria-pressed", String(on));
-			button.title = button.ariaLabel = on ? "Exit full screen" : "Full screen";
-			try { localStorage.setItem("note_expanded", on ? "1" : ""); } catch { /* not remembered */ }
-			this._autosize();
-		};
-		let expanded = false;
-		try { expanded = localStorage.getItem("note_expanded") === "1"; } catch { /* default */ }
-		setExpanded(expanded);
-		this._part("expand").addEventListener("click", () => setExpanded(!this.dialog.classList.contains("expanded")));
 		this._part("color-button").append(icon("palette", 20));
 		this._part("label-button").append(icon("label", 20));
 		this._part("settings").append(icon("more", 20));
@@ -550,6 +552,9 @@ class Notebook {
 		this._part("text").addEventListener("input", event => {
 			this.draft.text = event.target.value;
 			this._autosize();
+			// Keep the side-by-side preview current, without redrawing a long note on every key.
+			clearTimeout(this.previewTimer);
+			this.previewTimer = setTimeout(() => this._renderPreview(), 120);
 		});
 		this._bindFormatting();
 		this._part("labels").addEventListener("input", event => {
@@ -629,6 +634,22 @@ class Notebook {
 			if (!on) text.focus();
 		};
 		this._part("preview-toggle").addEventListener("click", () => setPreview(!this.previewing));
+		this.wideScreen = matchMedia("(min-width: 64rem)");
+		try { this.split = localStorage.getItem("note_split") !== "off"; } catch { this.split = true; }
+		this._part("split-toggle").addEventListener("click", () => {
+			this.split = !this.split;
+			try { localStorage.setItem("note_split", this.split ? "on" : "off"); } catch { /* not remembered */ }
+			this._renderDraft();
+			text.focus();
+		});
+		this.wideScreen.addEventListener("change", () => { if (this.draft) this._renderDraft(); });
+		// Side by side, the preview scrolls along with the text, to the same place proportionally.
+		const preview = this._part("preview");
+		text.addEventListener("scroll", () => {
+			if (!this._part("body").classList.contains("split")) return;
+			const range = text.scrollHeight - text.clientHeight;
+			preview.scrollTop = range > 0 ? text.scrollTop / range * (preview.scrollHeight - preview.clientHeight) : 0;
+		});
 		// Clicking the formatted text goes back to editing, except on a link or inside a selection.
 		this._part("preview").addEventListener("click", event => {
 			if (event.target.closest("a") || String(getSelection())) return;
