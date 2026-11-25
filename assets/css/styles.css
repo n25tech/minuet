@@ -294,7 +294,27 @@ textarea {
   background-color: color-mix(in srgb, var(--toast-text) 15%, transparent);
 }
 
-/* ---------- Soft surfaces ----------
+/* "A new version is available": a toast with a Refresh button. It is a popover so that it shows
+   above an open note; the rules below undo the browser's centred popover box. */
+.update-notice {
+  position: fixed;
+  inset: auto auto 1rem 1rem;
+  z-index: 2000;
+  max-width: min(30rem, calc(100vw - 2rem));
+  margin: 0;
+  border: none;
+  align-items: center;
+}
+
+.update-notice > div {
+  margin-right: 0.25rem;
+}
+
+.update-notice button.primary {
+  flex-shrink: 0;
+}
+
+
  * The page and its panels are one surface (--surface, from the theme), shaped with two shadows:
  * dark on the bottom right and light on the top left. Raised things stand out of the surface,
  * pressed things (fields, switch tracks) sink into it. */
