@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Test and build (Node ${{ matrix.node }})
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        # 22 is the oldest version package.json supports; 24 is the current LTS.
+        node: [22, 24]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node }}
+          cache: npm
+
+      # A clean install from the lockfile, so a package that is used but not listed fails here.
+      - run: npm ci
+
+      - run: npm test
+
+      - run: npm run build
+
+      # The build regenerates functions/api/_lib/core.js from js/calendar-core.js and
+      # js/tasks-core.js. It is committed, so it has to match what the build produces, or the
+      # server and the browser would apply different scheduling rules.
+      - name: Check generated files are committed
+        run: |
+          if [ -n "$(git status --porcelain -- functions/)" ]; then
+            git status --short -- functions/
+            git diff -- functions/
+            echo "::error::functions/api/_lib/core.js is out of date. Run 'npm run build' and commit the result."
+            exit 1
+          fi
