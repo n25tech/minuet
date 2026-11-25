@@ -9,13 +9,15 @@ A productivity app: pomodoro timer, Keep-style notes and a calendar.
   Tick "Add to calendar" on a new to-do to give it a date and (optionally) a time.
   The to-do list and the diary are two default notes labelled `pomodoro`, so they can also be opened under Notes.
   Label any other note `pomodoro` to use it here too: checklists can be picked above the to-do list (and their
-  to-dos picked as "Working on"), plain notes above the diary.
-* **Notes** (`#/notes`) - Keep-style notes with colours, labels and search. The options menu at the bottom
-  of a note turns it into a checklist (and back) or adds the note to the calendar; each checklist entry
+  to-dos picked as "Working on"), text notes above the diary.
+* **Notes** (`#/notes`) - Keep-style notes with colours, labels and search, of three kinds: plain notes
+  (shown just as typed), checklists, and Markdown notes. "Take a note..." starts a plain note, and the
+  buttons beside it a checklist or a Markdown note; the options menu at the bottom of a note turns it
+  into either of the other two kinds, or adds the note to the calendar. Each checklist entry
   can also be added to the calendar on its own. The Notes home only shows the notes you pin to it;
-  "All notes" lists everything. Plain notes can be long and use Markdown (headings, **bold**, lists,
-  `- [ ]` checkboxes, tables, quotes, links, and code blocks with syntax colouring), typed or added with
-  the toolbar, and are shown formatted. An open note fills the screen; headings show at their sizes while
+  "All notes" lists everything. Markdown notes can be long and use headings, **bold**, lists,
+  `- [ ]` checkboxes, tables, quotes, links, and code blocks with syntax colouring, typed or added with
+  the toolbar, and are shown formatted. An open note fills the screen; in a Markdown note headings show at their sizes while
   you type, wide screens show the formatted note side by side, and the note saves itself as you go
   (**Done** or Esc closes it).
 * **Calendar** (`#/calendar`) - month, week and day views, all-day and repeating events

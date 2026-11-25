@@ -113,6 +113,12 @@ button.icon-button:has(.icon) {
   overflow-wrap: anywhere;
 }
 
+/* Plain notes show exactly what was typed, line breaks and all. */
+.note-card-text.plain {
+  white-space: pre-wrap;
+  line-height: 1.45;
+}
+
 /* Long notes are cut short on the card and fade out; the editor shows them in full. */
 .note-card-text.long {
   max-height: 21rem;

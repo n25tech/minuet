@@ -1,8 +1,9 @@
 /*
  * Notes: Keep-style cards. Each note is
- *   { id, type: "text" | "list", title, text, items: [{ id, text, done, due?, calendar? }],
+ *   { id, type: "plain" | "list" | "markdown", title, text, items: [{ id, text, done, due?, calendar? }],
  *     color, labels: [..], pinned, due?, calendar?, createdAt, updatedAt }
- * A note is plain text or a checklist and can be switched between the two. A whole note, or a
+ * A note is plain text, a checklist or Markdown, and can be switched between them (see noteKind
+ * for notes stored as "text", from before Markdown notes were their own kind). A whole note, or a
  * single checklist entry, can be added to the calendar: calendar: true with
  * due: "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM", and optionally repeat: { freq }, status: "committed"
  * (otherwise suggested), and exdates / moves for single occurrences of a repeating one
@@ -52,6 +53,8 @@ const ICONS = {
 	palette: "M12 3c-4.97 0-9 4.03-9 9s4.03 9 9 9c.83 0 1.5-.67 1.5-1.5 0-.39-.15-.74-.39-1.01-.23-.26-.38-.61-.38-.99 0-.83.67-1.5 1.5-1.5H16c2.76 0 5-2.24 5-5 0-4.42-4.03-8-9-8zm-5.5 9c-.83 0-1.5-.67-1.5-1.5S5.67 9 6.5 9 8 9.67 8 10.5 7.33 12 6.5 12zm3-4C8.67 8 8 7.33 8 6.5S8.67 5 9.5 5s1.5.67 1.5 1.5S10.33 8 9.5 8zm5 0c-.83 0-1.5-.67-1.5-1.5S13.67 5 14.5 5s1.5.67 1.5 1.5S15.33 8 14.5 8zm3 4c-.83 0-1.5-.67-1.5-1.5S16.67 9 17.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z",
 	close: "M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z",
 	add: "M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z",
+	notes: "M14 2H6c-1.1 0-2 .9-2 2v16c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V8l-6-6zm2 16H8v-2h8v2zm0-4H8v-2h8v2zm-3-5V3.5L18.5 9H13z",
+	markdown: "M20.56 18H3.44C2.65 18 2 17.37 2 16.59V7.41C2 6.63 2.65 6 3.44 6h17.12c.79 0 1.44.63 1.44 1.41v9.18c0 .78-.65 1.41-1.44 1.41zM6.81 15.19v-3.66l1.92 2.35 1.92-2.35v3.66h1.93V8.81h-1.93l-1.92 2.35-1.92-2.35H4.89v6.38h1.92zM19.69 12h-1.92V8.81h-1.92V12h-1.93l2.89 3.28L19.69 12z",
 };
 
 function icon(name, size = 18) {
@@ -102,6 +105,23 @@ function parseLabels(text) {
 	return labels;
 }
 
+/*
+ * What kind of note this is: "plain", "list" or "markdown". Notes from before Markdown notes were
+ * their own kind (and those an assistant creates) are stored as "text": they show as Markdown if
+ * they use it, as they always have, and as plain text otherwise. Saving one stores its kind.
+ */
+function noteKind(note) {
+	if (note.type === "list" || note.type === "markdown" || note.type === "plain") return note.type;
+	return typeof hasMarkdown === "function" && hasMarkdown(note.text || "") ? "markdown" : "plain";
+}
+
+const KIND_LABELS = { plain: "Turn into a plain note", list: "Turn into a checklist", markdown: "Turn into a Markdown note" };
+const KIND_ICONS = { plain: "notes", list: "checklist", markdown: "markdown" };
+const TEXT_PLACEHOLDERS = { plain: "Take a note...", markdown: "Write in Markdown: **bold**, # heading, - list" };
+
+/* The "- [ ] ", "- [x] ", "- " or "1. " at the start of a line, with the checkbox's mark. */
+const LIST_LINE = /^(?:[-*+]|\d+[.)])\s+(?:\[([ xX])\]\s+)?/;
+
 function isBlankNote(note) {
 	return !note.title.trim() && !note.text.trim() && !(note.items || []).some(item => item.text.trim());
 }
@@ -132,9 +152,11 @@ class Notebook {
 			button.addEventListener("click", () => this.setScope(button.dataset.notesScope));
 		});
 		this.search.addEventListener("input", () => this.render());
-		document.getElementById("notes-new-text").addEventListener("click", () => this.create("text"));
+		document.getElementById("notes-new-text").addEventListener("click", () => this.create("plain"));
 		document.getElementById("notes-new-list").append(icon("checklist", 20));
 		document.getElementById("notes-new-list").addEventListener("click", () => this.create("list"));
+		document.getElementById("notes-new-markdown").append(icon("markdown", 20));
+		document.getElementById("notes-new-markdown").addEventListener("click", () => this.create("markdown"));
 		this._bindEditor();
 		// Code colouring arrives after the first draw; show it once it has.
 		document.addEventListener("minuet:markdown-ready", () => {
@@ -155,7 +177,7 @@ class Notebook {
 		if (typeof loadNoteEditor !== "function") return;
 		const load = () => loadNoteEditor().then(({ createEditor }) => {
 			this.code = createEditor(this._part("code"), {
-				placeholder: this._part("text").placeholder,
+				placeholder: TEXT_PLACEHOLDERS.markdown,
 				onChange: value => this._textChanged(value),
 				onShortcut: kind => this._format(kind),
 			});
@@ -165,7 +187,7 @@ class Notebook {
 		else setTimeout(load, 500);
 	}
 
-	/* Whichever of the two is typing the note text: the code editor, or the plain text box. */
+	/* Whichever of the two is typing the note text: the code editor (Markdown notes), or the plain text box. */
 	get _text() {
 		return this.useCode ? this.code : this.textBox;
 	}
@@ -281,7 +303,8 @@ class Notebook {
 			onclick: event => { event.stopPropagation(); this.store.upsert({ ...note, pinned: !note.pinned }); },
 		}, icon("pin")));
 		if (note.title) card.append(el("h4", { class: "note-card-title" }, note.title));
-		if (note.type === "list") {
+		const kind = noteKind(note);
+		if (kind === "list") {
 			const open = (note.items || []).filter(item => !item.done);
 			const doneCount = (note.items || []).length - open.length;
 			const shown = open.slice(0, 8);
@@ -303,8 +326,9 @@ class Notebook {
 		} else if (note.text) {
 			// Long notes are cut short on the card; the editor shows the whole note.
 			const long = note.text.split("\n").length > 14 || note.text.length > 900;
-			const text = el("div", { class: "note-card-text md" + (long ? " long" : "") });
-			text.append(renderMarkdown(note.text));
+			const text = el("div", { class: "note-card-text " + (kind === "markdown" ? "md" : "plain") + (long ? " long" : "") });
+			if (kind === "markdown") text.append(renderMarkdown(note.text));
+			else text.textContent = note.text;
 			// Links open in a new tab rather than opening the note.
 			text.querySelectorAll("a").forEach(link => link.addEventListener("click", event => event.stopPropagation()));
 			card.append(text);
@@ -344,8 +368,9 @@ class Notebook {
 
 	_edit(note, isNew) {
 		this.draft = { text: "", items: [], labels: [], color: "default", ...note };
+		this.draft.type = noteKind(this.draft);
 		this.draftIsNew = isNew;
-		this.useCode = !!this.code;
+		this._pickTextEditor();
 		clearTimeout(this.autosaveTimer);
 		// What's in the store for this note (the same as opened, until an autosave).
 		this.openedAs = this.lastSaved = JSON.stringify(this._normalized(this.draft));
@@ -357,7 +382,7 @@ class Notebook {
 			? "Edited " + new Date(this.draft.updatedAt).toLocaleString([], { day: "numeric", month: "short", hour: "numeric", minute: "2-digit" })
 			: "";
 		// A note that already uses formatting opens showing it; new and plain notes open for typing.
-		this.previewing = !isNew && this.draft.type !== "list" && hasMarkdown(this.draft.text);
+		this.previewing = !isNew && this.draft.type === "markdown" && hasMarkdown(this.draft.text);
 		this._renderDraft();
 		this.dialog.showModal();
 		this._autosize();
@@ -370,23 +395,26 @@ class Notebook {
 	_renderDraft() {
 		const draft = this.draft;
 		const isList = draft.type === "list";
+		const isMarkdown = draft.type === "markdown";
 		this.dialog.dataset.color = draft.color;
-		const previewing = !isList && this.previewing;
+		this.dialog.dataset.kind = draft.type;
+		const previewing = isMarkdown && this.previewing;
 		const writing = !isList && !previewing;
 		this._part("text").hidden = !writing || this.useCode;
 		this._part("code").hidden = !writing || !this.useCode;
+		this._part("text").placeholder = TEXT_PLACEHOLDERS[isMarkdown ? "markdown" : "plain"];
 		// Only when it differs: setting it resets the cursor (and the code editor's undo).
 		if (!isList && this._text.value !== draft.text) this._text.value = draft.text;
-		this._part("format").hidden = isList;
+		this._part("format").hidden = !isMarkdown;
 		this._part("format-tools").hidden = previewing;
 		const toggle = this._part("preview-toggle");
 		toggle.textContent = previewing ? "Edit" : "Preview";
 		toggle.setAttribute("aria-pressed", String(previewing));
 		// On a wide screen the formatted note can sit next to the text while typing.
 		const wide = this.wideScreen.matches;
-		const split = !isList && !previewing && wide && this.split;
+		const split = isMarkdown && !previewing && wide && this.split;
 		const splitToggle = this._part("split-toggle");
-		splitToggle.hidden = isList || previewing || !wide;
+		splitToggle.hidden = !isMarkdown || previewing || !wide;
 		splitToggle.setAttribute("aria-pressed", String(!!this.split));
 		this._part("body").classList.toggle("split", split);
 		this.dialog.classList.toggle("split", split);
@@ -407,9 +435,13 @@ class Notebook {
 		this._part("status").value = draft.status === "committed" ? "committed" : "";
 		this._part("chips").replaceChildren(...draft.labels.map(label => el("span", { class: "chip small" }, label)));
 
-		const fixed = isDefaultNote(draft);   // the Pomodoro page relies on these two keeping their kind
-		this._part("toggle-list").hidden = fixed;
-		this._part("toggle-list").replaceChildren(icon("checklist"), isList ? "Turn into a plain note" : "Turn into a checklist");
+		// The Pomodoro page relies on these two staying a checklist and a text note.
+		const fixed = isDefaultNote(draft);
+		for (const kind of Object.keys(KIND_LABELS)) {
+			const button = this._part(`to-${kind}`);
+			button.hidden = kind === draft.type || (fixed && (isList || kind === "list"));
+			button.replaceChildren(icon(KIND_ICONS[kind]), KIND_LABELS[kind]);
+		}
 		this._part("toggle-calendar").replaceChildren(icon("calendar"), draft.calendar ? "Remove note from calendar" : "Add note to calendar");
 		this._part("delete").hidden = this.draftIsNew || fixed;
 		document.querySelectorAll("#note-panel-colors button").forEach(button => {
@@ -540,23 +572,41 @@ class Notebook {
 		return row;
 	}
 
-	_convert() {
+	/* Markdown is typed in the code editor (if it has loaded), plain text in the text box. Chosen as a note opens or changes kind, so it never swaps mid-typing. */
+	_pickTextEditor() {
+		this.useCode = this.draft.type === "markdown" && !!this.code;
+	}
+
+	/* Turn the open note into another kind ("plain", "list" or "markdown"), keeping what's written. */
+	_convert(kind) {
 		const draft = this.draft;
+		if (kind === draft.type) return;
 		if (draft.type === "list") {
-			// As in Keep, going back to plain text keeps the entries' text, one per line.
-			draft.text = draft.items.map(item => item.text.trim()).filter(Boolean).join("\n");
+			// As in Keep, going back to text keeps the entries' text, one per line; in Markdown, as checkboxes.
+			const entries = draft.items.filter(item => item.text.trim());
+			draft.text = entries.map(item => (kind === "markdown" ? `- [${item.done ? "x" : " "}] ` : "") + item.text.trim()).join("\n");
 			draft.items = [];
-			draft.type = "text";
-		} else {
-			draft.items = draft.text.split("\n").map(line => line.trim()).filter(Boolean)
-				.map(text => ({ id: crypto.randomUUID(), text, done: false }));
+		} else if (kind === "list") {
+			// One entry per line; list markers and Markdown checkboxes become entries (ticked if checked).
+			draft.items = draft.text.split("\n").map(line => line.trim()).filter(Boolean).map(line => {
+				const marker = LIST_LINE.exec(line);
+				const text = (marker ? line.slice(marker[0].length).trim() : "") || line;
+				return { id: crypto.randomUUID(), text, done: !!(marker && marker[1] && marker[1] !== " ") };
+			});
 			if (!draft.items.length) draft.items.push({ id: crypto.randomUUID(), text: "", done: false });
 			draft.text = "";
-			draft.type = "list";
 		}
+		draft.type = kind;
+		this.previewing = false;
+		this._pickTextEditor();
 		this._renderDraft();
-		if (draft.type === "list") this._focusItem(draft.items[draft.items.length - 1].id);
-		else this._text.focus();
+		if (kind !== "list") {
+			this._text.focus();
+			return;
+		}
+		const open = draft.items.filter(item => !item.done);
+		if (open.length) this._focusItem(open[open.length - 1].id);
+		else this._addItem();
 	}
 
 	_bindEditor() {
@@ -639,7 +689,7 @@ class Notebook {
 			event.stopPropagation();
 			setMenu(menu.hidden);
 		});
-		this._part("toggle-list").addEventListener("click", () => this._convert());
+		for (const kind of Object.keys(KIND_LABELS)) this._part(`to-${kind}`).addEventListener("click", () => this._convert(kind));
 		this._part("toggle-calendar").addEventListener("click", () => setCalendar(!this.draft.calendar));
 		this._part("delete").addEventListener("click", () => {
 			const id = this.draft.id;
@@ -704,6 +754,7 @@ class Notebook {
 			if (button) this._format(button.dataset.format);
 		});
 		text.addEventListener("keydown", event => {
+			if (!this.draft || this.draft.type !== "markdown") return;   // a plain note has no formatting
 			if (!(event.ctrlKey || event.metaKey) || event.altKey || event.shiftKey) return;
 			const format = { b: "bold", i: "italic", k: "link" }[event.key.toLowerCase()];
 			if (!format) return;
@@ -744,6 +795,7 @@ class Notebook {
 	_normalized(draft) {
 		const note = structuredClone(draft);
 		note.title = (note.title || "").trim();
+		note.type = noteKind(note);
 		if (note.type === "list") {
 			note.text = "";
 			note.items = note.items.filter(item => item.text.trim());

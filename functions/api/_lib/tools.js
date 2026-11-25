@@ -116,10 +116,13 @@ const entryView = (note, item) => ({
     ...(item.calendar && item.due ? { task_id: `item:${note.id}:${item.id}` } : {}),
 });
 
+/* "checklist", "markdown", or "text" (plain notes, and older ones stored as "text", which the app shows as Markdown if they use it). */
+const kindOf = note => ({ list: 'checklist', markdown: 'markdown' })[note.type] || 'text';
+
 const noteView = note => ({
     id: note.id,
     title: note.title || '',
-    type: note.type === 'list' ? 'checklist' : 'text',
+    type: kindOf(note),
     ...(note.type === 'list' ? { entries: (note.items || []).map(item => entryView(note, item)) } : { text: note.text || '' }),
     labels: note.labels || [],
     color: note.color || 'default',
@@ -316,7 +319,7 @@ export const TOOLS = [
                 notes: notes.filter(matches).sort((a, b) => (b.updatedAt || 0) - (a.updatedAt || 0)).map(note => ({
                     id: note.id,
                     title: note.title || '',
-                    type: note.type === 'list' ? 'checklist' : 'text',
+                    type: kindOf(note),
                     ...(note.type === 'list'
                         ? { entries: (note.items || []).length, open_entries: (note.items || []).filter(item => !item.done).length }
                         : { preview: (note.text || '').slice(0, 200) }),
@@ -516,12 +519,13 @@ export const TOOLS = [
     {
         name: 'create_note',
         scope: 'suggest',
-        description: 'Create a note: plain text, or a checklist if you pass “entries”. Give “due” to put the whole note on the calendar.',
+        description: 'Create a note: plain text, Markdown (pass markdown: true), or a checklist if you pass “entries”. Give “due” to put the whole note on the calendar.',
         inputSchema: {
             type: 'object',
             properties: {
                 title: { type: 'string' },
                 text: { type: 'string', description: 'The body of a text note.' },
+                markdown: { type: 'boolean', description: 'true: the text is Markdown and is shown formatted. false: plain text, shown as typed. Left out: shown formatted only if it uses Markdown.' },
                 entries: { type: 'array', items: { type: 'string' }, description: 'Makes it a checklist with these entries.' },
                 labels: { type: 'array', items: { type: 'string' } },
                 color: { type: 'string', enum: NOTE_COLORS },
@@ -537,10 +541,12 @@ export const TOOLS = [
                 throw new ToolError('“entries” must be a list of up to 200 non-empty texts.');
             }
             if (entries && args.text) throw new ToolError('Pass either “text” or “entries”, not both.');
+            if (args.markdown !== undefined && typeof args.markdown !== 'boolean') throw new ToolError('“markdown” must be true or false.');
+            if (entries && args.markdown !== undefined) throw new ToolError('“markdown” is for text notes, not checklists.');
             const now = Date.now();
             const note = {
                 id: crypto.randomUUID(),
-                type: entries ? 'list' : 'text',
+                type: entries ? 'list' : ({ true: 'markdown', false: 'plain' })[args.markdown] || 'text',
                 title: (text(args, 'title') || '').trim(),
                 text: entries ? '' : (text(args, 'text', { max: 200000 }) || ''),
                 items: (entries || []).map(entry => ({ id: crypto.randomUUID(), text: entry.trim(), done: false })),
