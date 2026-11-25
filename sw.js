@@ -11,11 +11,21 @@ if (workbox) {
     })
   );
 
-  // 2. Stale-While-Revalidate for JS, CSS, and assets
+  // 2. Network-first for JS and CSS, so a deploy reaches phones and installed apps on the next
+  //    load (stale-while-revalidate kept running the old code until a second reload). The cache
+  //    is still used offline, or when the network takes more than 3 seconds.
   workbox.routing.registerRoute(
-    ({ request }) => request.destination === 'script' || 
-                     request.destination === 'style' ||
-                     request.destination === 'image',
+    ({ request }) => request.destination === 'script' ||
+                     request.destination === 'style',
+    new workbox.strategies.NetworkFirst({
+      cacheName: 'code-cache',
+      networkTimeoutSeconds: 3,
+    })
+  );
+
+  // 3. Stale-while-revalidate for images, which rarely change and are fine a load late.
+  workbox.routing.registerRoute(
+    ({ request }) => request.destination === 'image',
     new workbox.strategies.StaleWhileRevalidate({
       cacheName: 'asset-cache',
     })
