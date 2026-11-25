@@ -420,6 +420,9 @@ class Notebook {
 		this.dialog.classList.toggle("split", split);
 		this._part("preview").hidden = !(previewing || split);
 		this._renderPreview();
+		// The text area grows to fill the editor, so a checklist hides it; left empty but shown, it
+		// would push the entries down to the bottom of the screen.
+		this._part("body").hidden = isList;
 		this._part("items").hidden = !isList;
 		if (isList) this._renderItems();
 
