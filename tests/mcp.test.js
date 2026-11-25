@@ -224,6 +224,15 @@ test('To-dos and notes: the old to-do list and diary are brought over, and edits
     assert.strictEqual((await call(suggest, 'get_note', { id: 'pomodoro-diary' })).text, 'old diary');
     await assert.rejects(call(suggest, 'update_note', { id: note.id, text: 'x' }), /checklist/);
 
+    // Text notes can be made Markdown or plain; left unsaid, the app decides from the text.
+    const md = await call(suggest, 'create_note', { title: 'Plan', text: '# Steps', markdown: true });
+    const plain = await call(suggest, 'create_note', { title: 'Memo', text: '# not a heading', markdown: false });
+    const either = await call(suggest, 'create_note', { title: 'Jot', text: 'hello' });
+    assert.deepStrictEqual([md.note.type, plain.note.type, either.note.type], ['markdown', 'text', 'text']);
+    const storedNotes = (await stored(notebookApi)).notes;
+    assert.deepStrictEqual(['Plan', 'Memo', 'Jot'].map(title => storedNotes.find(n => n.title === title).type), ['markdown', 'plain', 'text']);
+    await assert.rejects(call(suggest, 'create_note', { entries: ['a'], markdown: true }), /not checklists/);
+
     // Deleting needs manage, and the default notes can never be deleted.
     await assert.rejects(call(suggest, 'delete_note', { id: note.id }), /“manage” access level/);
     await assert.rejects(call(manage, 'delete_note', { id: 'pomodoro-todo' }), /can't be deleted/);

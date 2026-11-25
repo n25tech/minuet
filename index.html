@@ -27,7 +27,7 @@
   <script src="js/tasks-core.js?v=2" defer></script>
   <!-- Built by scripts/build.js from src/markdown/ (a module: deferred, and run in order with the scripts around it). -->
   <script type="module" src="js/markdown.js"></script>
-  <script src="js/notebook.js?v=9" defer></script>
+  <script src="js/notebook.js?v=10" defer></script>
   <script src="js/todolist.js?v=9" defer></script>
   <script src="js/diary.js?v=2" defer></script>
   <script src="js/calendar.js?v=4" defer></script>
@@ -36,7 +36,7 @@
   <link rel="stylesheet" href="assets/css/light_theme.css?v=6">
   <link rel="stylesheet" href="assets/css/dark_theme.css?v=5">
   <link rel="stylesheet" href="assets/css/main_page.css?v=13">
-  <link rel="stylesheet" href="assets/css/notebook.css?v=10">
+  <link rel="stylesheet" href="assets/css/notebook.css?v=11">
   <link rel="stylesheet" href="assets/css/calendar.css?v=6">
   <link rel="stylesheet" href="assets/css/settings.css?v=2">
   <script>
@@ -159,6 +159,7 @@
           <div class="note-composer">
             <button type="button" id="notes-new-text" class="note-composer-text">Take a note...</button>
             <button type="button" id="notes-new-list" class="icon-button" title="New checklist" aria-label="New checklist"></button>
+            <button type="button" id="notes-new-markdown" class="icon-button" title="New Markdown note" aria-label="New Markdown note"></button>
           </div>
           <div id="notes-labels" class="chip-row" aria-label="Filter by label"></div>
           <div id="notes-grid" class="notes-grid"></div>
@@ -260,7 +261,7 @@
             <button type="button" id="note-preview-toggle" class="note-preview-toggle" aria-pressed="false">Preview</button>
           </div>
           <div id="note-body" class="note-body">
-            <textarea id="note-text" rows="1" placeholder="Take a note... (Markdown works: **bold**, # heading, - list)" aria-label="Note"></textarea>
+            <textarea id="note-text" rows="1" placeholder="Take a note..." aria-label="Note"></textarea>
             <div id="note-code" class="note-code" hidden></div>
             <div id="note-preview" class="note-preview md" title="Click to edit" hidden></div>
           </div>
@@ -294,7 +295,9 @@
             <div class="menu-wrap">
               <button type="button" id="note-settings" class="icon-button" title="Note options" aria-label="Note options" aria-haspopup="menu" aria-expanded="false"></button>
               <div id="note-menu" class="menu" role="menu" hidden>
-                <button type="button" role="menuitem" id="note-toggle-list"></button>
+                <button type="button" role="menuitem" id="note-to-plain"></button>
+                <button type="button" role="menuitem" id="note-to-list"></button>
+                <button type="button" role="menuitem" id="note-to-markdown"></button>
                 <button type="button" role="menuitem" id="note-toggle-calendar"></button>
                 <button type="button" role="menuitem" id="note-delete" class="danger">Delete note</button>
               </div>
