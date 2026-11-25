@@ -3,6 +3,11 @@ importScripts('https://storage.googleapis.com/workbox-cdn/releases/6.4.1/workbox
 if (workbox) {
   console.log(`Workbox loaded successfully`);
 
+  // Take over as soon as a new version is installed, rather than once every tab and the
+  // installed app have been fully closed, so changes to the caching below apply straight away.
+  workbox.core.skipWaiting();
+  workbox.core.clientsClaim();
+
   // 1. Network-first strategy for your main HTML / routes
   workbox.routing.registerRoute(
     ({ request }) => request.mode === 'navigate',
