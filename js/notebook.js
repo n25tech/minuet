@@ -474,7 +474,25 @@ class Notebook {
 
 	_focusItem(id) {
 		const input = this._part("items").querySelector(`[data-item-id="${id}"] input[type="text"]`);
-		if (input) input.focus();
+		if (!input) return;
+		input.focus({ preventScroll: true });
+		this._reveal(input.closest(".note-item"));
+	}
+
+	/* Scroll the note so that an entry sits clear of the sticky bottom bar and, on phones, of the
+	   on-screen keyboard. A plain focus() only scrolls it to the form's edge, behind the bar. */
+	_reveal(row) {
+		const form = this._part("form");
+		const bar = form.querySelector(".note-bar");
+		const view = window.visualViewport;
+		const box = row.getBoundingClientRect();
+		const top = form.getBoundingClientRect().top;
+		const bottom = Math.min(
+			bar ? bar.getBoundingClientRect().top : form.getBoundingClientRect().bottom,
+			view ? view.offsetTop + view.height : window.innerHeight);
+		const gap = 8;
+		if (box.bottom + gap > bottom) form.scrollTop += box.bottom + gap - bottom;
+		else if (box.top - gap < top) form.scrollTop -= top - (box.top - gap);
 	}
 
 	/* Unticked entries first, then "+ List item", then the ticked ones - as in Keep. */
